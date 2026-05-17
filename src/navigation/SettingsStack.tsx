@@ -1,0 +1,70 @@
+import React from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import Profile from '../screens/main/Profile';
+import Settings from '../screens/main/Settings';
+import PersonalInfo from '../screens/main/settings/PersonalInfo';
+import PasswordSecurity from '../screens/main/settings/PasswordSecurity';
+import EmailPrefs from '../screens/main/settings/EmailPrefs';
+import Language from '../screens/main/settings/Language';
+import Notifications from '../screens/main/settings/Notifications';
+import Theme from '../screens/main/settings/Theme';
+import HelpSupport from '../screens/main/settings/HelpSupport';
+import Terms from '../screens/main/settings/Terms';
+import Privacy from '../screens/main/settings/Privacy';
+import SavedArtifacts from '../screens/main/SavedArtifacts';
+import FavoriteArtifacts from '../screens/main/FavoriteArtifacts';
+
+const Stack = createNativeStackNavigator();
+
+export default function SettingsStack() {
+  return (
+    <Stack.Navigator
+      id="settings-stack"
+      screenOptions={{ headerShown: false }}
+      initialRouteName="ProfileRoot"
+    >
+      <Stack.Screen
+        name="ProfileRoot"
+        component={Profile}
+      />
+
+      <Stack.Screen
+        name="SettingsRoot"
+        component={Settings}
+      />
+
+      <Stack.Screen name="PersonalInfo" component={PersonalInfo} />
+      <Stack.Screen name="PasswordSecurity" component={PasswordSecurity} />
+      <Stack.Screen name="EmailPrefs" component={EmailPrefs} />
+
+      <Stack.Screen name="Language" component={Language} />
+      <Stack.Screen name="Notifications" component={Notifications} />
+      <Stack.Screen name="Theme" component={Theme} />
+
+      <Stack.Screen name="HelpSupport" component={HelpSupport} />
+      <Stack.Screen name="Terms" component={Terms} />
+      <Stack.Screen name="Privacy" component={Privacy} />
+
+      <Stack.Screen
+        name="SavedArtifacts"
+        children={(props) => (
+          <SavedArtifacts
+            {...props}
+            onBack={() => props.navigation.goBack()}
+          />
+        )}
+      />
+
+      <Stack.Screen
+        name="FavoriteArtifacts"
+        children={(props) => (
+          <FavoriteArtifacts
+            {...props}
+            onBack={() => props.navigation.goBack()}
+          />
+        )}
+      />
+    </Stack.Navigator>
+  );
+}

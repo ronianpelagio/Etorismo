@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Etorismo",
+    "slug": "Etorismo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.jpg",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./src/assets/icon.jpg",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.anonymous.Etorismo"
+    },
+    "web": {
+      "favicon": "./src/assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      "expo-video",
+      ["expo-audio", { "enableBackgroundPlayback": true }],
+      "expo-asset"
+    ]
+  }
+}
