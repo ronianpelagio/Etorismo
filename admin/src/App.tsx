@@ -6,9 +6,6 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ArtifactsPage from './pages/ArtifactsPage';
 import UsersPage from './pages/UsersPage';
-import LivePage from './pages/LivePage';
-import QrPage from './pages/QrPage';
-import AudioGuidesPage from './pages/AudioGuidesPage';
 import RatingsPage from './pages/RatingsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import EventsPage from './pages/EventsPage';
@@ -149,57 +146,16 @@ export default function App() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((value) => !value)}
       />
-      <main className="page-shell">
-        <div className="top-bar">
-          <div>
-            <h1 className="page-title">{pageTitleMap[activePage]}</h1>
-            <p className="page-subtitle">{pageSubtitleMap[activePage]}</p>
-          </div>
-
-          <div className="top-bar-actions">
-            <div className="search-bar">
-              <span className="search-icon"></span>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search dashboard…"
-              />
-            </div>
-            <button className="icon-button" type="button" aria-label="Notifications">
-              🔔
-            </button>
-            <div className="profile-menu">
-              <button className="profile-button" type="button" onClick={() => setProfileMenuOpen((open) => !open)}>
-                <span className="profile-badge">{profile.full_name ? profile.full_name[0].toUpperCase() : profile.email[0].toUpperCase()}</span>
-                <span className="profile-name">{profile.full_name || profile.email}</span>
-              </button>
-              {profileMenuOpen && (
-                <div className="profile-dropdown">
-                  <button type="button" onClick={() => { setActivePage('settings'); setProfileMenuOpen(false); }}>
-                    Settings
-                  </button>
-                  <button type="button" onClick={() => { handleSignOut(); }}>
-                    Sign out
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
+         
         <div className="page-content">
           {activePage === 'dashboard' && <DashboardPage profile={profile} />}
           {activePage === 'artifacts' && <ArtifactsPage />}
-          {activePage === 'qr' && <QrPage />}
-          {activePage === 'audio' && <AudioGuidesPage />}
           {activePage === 'users' && <UsersPage />}
           {activePage === 'reviews' && <RatingsPage />}
           {activePage === 'announcements' && <AnnouncementsPage />}
           {activePage === 'events' && <EventsPage />}
-          {activePage === 'live' && <LivePage />}
           {activePage === 'settings' && <SettingsPage />}
         </div>
-      </main>
     </div>
   );
 }

@@ -1,10 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../services/supabase';
 import { Artifact } from '../types';
 import QRCode from 'qrcode';
-import './pages.css';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+import {
+  FiPlus,
+  FiEdit2,
+  FiTrash2,
+  FiVolume2,
+  FiImage,
+  FiCalendar,
+  FiFolder,
+  FiGlobe,
+  FiChevronLeft,
+  FiChevronRight,
+  FiCheck,
+  FiX,
+  FiUploadCloud,
+  FiMic,
+} from 'react-icons/fi';
+
+// Import the artifact utilities
+import {
+  translateAllLanguages,
+  type AudioUploadResult,
+} from '../utils/ArtifactUtil';
+
+
 
 const CATEGORIES = [
   'Sacred Vessels',
@@ -18,11 +40,11 @@ const CATEGORIES = [
 ];
 
 const LANGUAGES = [
-  { code: 'en',  label: 'English',  flag: '🇺🇸', dbDesc: 'description_en',  dbAudio: 'audio_en',  mmLang: 'en-US', bcp47: 'en-US'  },
-  { code: 'fil', label: 'Filipino', flag: '🇵🇭', dbDesc: 'description_fil', dbAudio: 'audio_fil', mmLang: 'tl-PH', bcp47: 'fil-PH' },
-  { code: 'ja',  label: 'Japanese', flag: '🇯🇵', dbDesc: 'description_ja',  dbAudio: 'audio_ja',  mmLang: 'ja-JP', bcp47: 'ja-JP'  },
-  { code: 'es',  label: 'Spanish',  flag: '🇪🇸', dbDesc: 'description_es',  dbAudio: 'audio_es',  mmLang: 'es-ES', bcp47: 'es-ES'  },
-  { code: 'ko',  label: 'Korean',   flag: '🇰🇷', dbDesc: 'description_ko',  dbAudio: 'audio_ko',  mmLang: 'ko-KR', bcp47: 'ko-KR'  },
+  { code: 'en',  label: 'English',  flag: '🇺🇸', dbDesc: 'description_en',  dbAudio: 'audio_en',  dbName: 'name', mmLang: 'en-US', ttsLang: 'en' },
+  { code: 'fil', label: 'Filipino', flag: '🇵🇭', dbDesc: 'description_fil', dbAudio: 'audio_fil', dbName: 'name_fil', mmLang: 'tl-PH', ttsLang: 'tl' },
+  { code: 'ja',  label: 'Japanese', flag: '🇯🇵', dbDesc: 'description_ja',  dbAudio: 'audio_ja',  dbName: 'name_ja', mmLang: 'ja-JP', ttsLang: 'ja' },
+  { code: 'es',  label: 'Spanish',  flag: '🇪🇸', dbDesc: 'description_es',  dbAudio: 'audio_es',  dbName: 'name_es', mmLang: 'es-ES', ttsLang: 'es' },
+  { code: 'ko',  label: 'Korean',   flag: '🇰🇷', dbDesc: 'description_ko',  dbAudio: 'audio_ko',  dbName: 'name_ko', mmLang: 'ko-KR', ttsLang: 'ko' },
 ] as const;
 
 type LangCode = 'en' | 'fil' | 'ja' | 'es' | 'ko';
@@ -31,12 +53,18 @@ const emptyForm = {
   name:            '',
   category:        CATEGORIES[0],
   image_url:       '',
+  image_file:      null as File | null,
   created_at:      '',
   description_en:  '',
   description_fil: '',
   description_ja:  '',
   description_es:  '',
   description_ko:  '',
+  // Translated name fields
+  name_fil: '',
+  name_ja: '',
+  name_es: '',
+  name_ko: '',
 };
 
 type AForm = typeof emptyForm;
@@ -53,220 +81,100 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([byteArray], { type: mime });
 }
 
+// ─── Upload Functions ───────────────────────────────────────────────────────
 
-
-function encodeWAV(samples: Float32Array, sampleRate: number): Blob {
-  const buffer    = new ArrayBuffer(44 + samples.length * 2);
-  const view      = new DataView(buffer);
-  const writeStr  = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-  };
-  const write16   = (offset: number, v: number) => view.setInt16(offset, v, true);
-  const write32   = (offset: number, v: number) => view.setUint32(offset, v, true);
-
-  writeStr(0,  'RIFF');
-  write32( 4,  36 + samples.length * 2);
-  writeStr(8,  'WAVE');
-  writeStr(12, 'fmt ');
-  write32( 16, 16);            // subchunk size
-  write16( 20, 1);             // PCM
-  write16( 22, 1);             // mono
-  write32( 24, sampleRate);
-  write32( 28, sampleRate * 2); // byte rate
-  write16( 32, 2);             // block align
-  write16( 34, 16);            // bits per sample
-  writeStr(36, 'data');
-  write32( 40, samples.length * 2);
-
-  let offset = 44;
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-    offset += 2;
-  }
-
-  return new Blob([buffer], { type: 'audio/wav' });
-}
-
-
-function waitForVoices(): Promise<SpeechSynthesisVoice[]> {
-  return new Promise(resolve => {
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) return resolve(voices);
-    window.speechSynthesis.onvoiceschanged = () => {
-      resolve(window.speechSynthesis.getVoices());
-    };
-  });
-}
-
-async function generateTTSWav(text: string, bcp47: string): Promise<Blob> {
-  return new Promise(async (resolve, reject) => {
-    if (!window.speechSynthesis) {
-      return reject(new Error('SpeechSynthesis not available'));
-    }
-
-    // Cancel any pending speech
-    window.speechSynthesis.cancel();
-
-    const voices    = await waitForVoices();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang  = bcp47;
-    utterance.rate  = 0.9;
-
-    // Try to match exact lang, then language prefix
-    const exact   = voices.find(v => v.lang === bcp47);
-    const partial = voices.find(v => v.lang.startsWith(bcp47.split('-')[0]));
-    if (exact)        utterance.voice = exact;
-    else if (partial) utterance.voice = partial;
-
-    const AudioCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
-
-    try {
-      // Create a silent AudioContext for timing
-      const audioCtx   = new AudioCtx({ sampleRate: 22050 });
-      const dest        = audioCtx.createMediaStreamDestination();
-      const chunks: BlobPart[] = [];
-
-      // Use MediaRecorder on the AudioContext stream
-      const recorder   = new MediaRecorder(dest.stream, { mimeType: 'audio/webm;codecs=opus' });
-      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-      recorder.onstop = () => {
-        audioCtx.close();
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        if (blob.size < 1000) {
-          // Blob is effectively empty — SpeechSynthesis didn't route here
-          reject(new Error('TTS audio not captured — see console for details'));
-          return;
-        }
-        resolve(blob);
-      };
-
-      utterance.onend   = () => setTimeout(() => recorder.stop(), 300);
-      utterance.onerror = e  => { audioCtx.close(); reject(new Error(e.error)); };
-
-      // Add a dummy oscillator at 0 gain to keep the stream active
-      const osc  = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      gain.gain.value = 0;
-      osc.connect(gain);
-      gain.connect(dest);
-      osc.start();
-
-      recorder.start(100);
-      window.speechSynthesis.speak(utterance);
-
-      // Watchdog — if speech hasn't ended in 30s, stop
-      setTimeout(() => {
-        if (recorder.state === 'recording') recorder.stop();
-      }, 30000);
-
-    } catch (err) {
-      reject(err);
-    }
-  });
-}
-
-// ─── Translation — MyMemory (free, no API key, CORS-open from browser) ───────
-
-async function translateText(text: string, targetLang: string): Promise<string> {
-  const url =
-    `https://api.mymemory.translated.net/get` +
-    `?q=${encodeURIComponent(text)}` +
-    `&langpair=en|${targetLang}`;
-
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`MyMemory HTTP ${res.status}`);
-
-  const data = await res.json();
-  if (data.responseStatus !== 200) {
-    throw new Error(data.responseDetails || `MyMemory status ${data.responseStatus}`);
-  }
-
-  return data.responseData.translatedText as string;
-}
-
-async function translateAllLanguages(englishText: string): Promise<Record<LangCode, string>> {
-  const targetLangs = LANGUAGES.filter(l => l.code !== 'en');
-
-  const settled = await Promise.allSettled(
-    targetLangs.map(async lang => ({
-      code: lang.code as LangCode,
-      text: await translateText(englishText, lang.mmLang),
-    }))
-  );
-
-  const out: Record<string, string> = { en: englishText };
-  settled.forEach(r => {
-    if (r.status === 'fulfilled') out[r.value.code] = r.value.text;
-    else console.warn('Translation failed:', r.reason);
-  });
-
-  return {
-    en:  englishText,
-    fil: out.fil || '',
-    ja:  out.ja  || '',
-    es:  out.es  || '',
-    ko:  out.ko  || '',
-  };
-}
-
-// ─── Audio upload ─────────────────────────────────────────────────────────────
-// Bucket: artifact-audio  (create this bucket — see SQL below)
-// Path:   {artifactId}/{lang}.webm
-//
-// CREATE THIS BUCKET IN SUPABASE:
-// Run this SQL in your Supabase SQL editor:
-//
-//   SELECT storage.create_bucket('artifact-audio', '{"public": true}');
-//
-//   CREATE POLICY "Public read" ON storage.objects
-//     FOR SELECT USING (bucket_id = 'artifact-audio');
-//
-//   CREATE POLICY "Auth upload" ON storage.objects
-//     FOR INSERT WITH CHECK (bucket_id = 'artifact-audio');
-//
-//   CREATE POLICY "Auth update" ON storage.objects
-//     FOR UPDATE USING (bucket_id = 'artifact-audio');
-//
-//   CREATE POLICY "Auth delete" ON storage.objects
-//     FOR DELETE USING (bucket_id = 'artifact-audio');
-
-async function uploadAudio(artifactId: string, lang: LangCode, blob: Blob): Promise<string> {
-  const ext      = blob.type.includes('webm') ? 'webm' : 'wav';
-  const filePath = `${artifactId}/${lang}.${ext}`;
+async function uploadImage(artifactId: string, file: File): Promise<string> {
+  const fileExt = file.name.split('.').pop() || 'jpg';
+  const filePath = `artifacts/${artifactId}.${fileExt}`;
 
   const { error } = await supabase.storage
-    .from('artifact-audio')               // ← new dedicated bucket
-    .upload(filePath, blob, {
-      contentType: blob.type || 'audio/webm',
-      upsert:      true,
-    });
+    .from('artifact-images')
+    .upload(filePath, file, { contentType: file.type, upsert: true });
 
-  if (error) throw new Error(`Audio upload (${lang}): ${error.message}`);
-
-  const { data } = supabase.storage.from('artifact-audio').getPublicUrl(filePath);
-  return data.publicUrl;
+  if (error) throw new Error(`Image upload failed: ${error.message}`);
+  return supabase.storage.from('artifact-images').getPublicUrl(filePath).data.publicUrl;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+async function generateAudioViaAPI(
+  artifactId: string,
+  text: string,
+  langCode: LangCode,
+  voiceName?: string,
+  speakingRate?: number
+): Promise<{ success: boolean; audioUrl: string; voiceUsed?: string }> {
+  const response = await fetch('http://localhost:5000/generate-audio', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      artifactId,
+      text,
+      lang: langCode,        
+      voiceName: voiceName,  
+      speakingRate: speakingRate || 1.0
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to generate audio');
+  }
+
+  return await response.json();
+}
+
+// ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function ArtifactsPage() {
-  const [artifacts, setArtifacts]     = useState<Artifact[]>([]);
-  const [form, setForm]               = useState<AForm>(emptyForm);
-  const [editingId, setEditingId]     = useState<string | null>(null);
-  const [showModal, setShowModal]     = useState(false);
-  const [loading, setLoading]         = useState(true);
-  const [saving, setSaving]           = useState(false);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [form, setForm] = useState<AForm>(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [activeLang, setActiveLang] = useState<LangCode>('en');
+  const [saveStep, setSaveStep] = useState('');
+  const [modalStep, setModalStep] = useState(1);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Voice selection states
+  const [availableVoices, setAvailableVoices] = useState<any[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>('');
+  const [speakingRate, setSpeakingRate] = useState<number>(1.0);
+  const [showVoiceControls, setShowVoiceControls] = useState<boolean>(false);
+  
+  // Translation and audio states
   const [translating, setTranslating] = useState(false);
-  const [translationProgress, setTranslationProgress] = useState('');
-  const [page, setPage]               = useState(1);
-  const [total, setTotal]             = useState(0);
-  const [error, setError]             = useState<string | null>(null);
-  const [activeLang, setActiveLang]   = useState<LangCode>('en');
-  const [saveStep, setSaveStep]       = useState('');
-  const [modalStep, setModalStep]     = useState(1);
+  const [translateStep, setTranslateStep] = useState('');
+  const [audioSaving, setAudioSaving] = useState(false);
+  const [audioStep, setAudioStep] = useState('');
+  const [generatingAllAudio, setGeneratingAllAudio] = useState(false);
+  const [audioStatus, setAudioStatus] = useState<Record<string, string>>({});
 
   useEffect(() => { fetchData(page); }, [page]);
+
+  useEffect(() => {
+    if ('speechSynthesis' in window) speechSynthesis.getVoices();
+  }, []);
+
+  // Fetch available voices when language changes
+  useEffect(() => {
+    if (activeLang) {
+      fetch(`http://localhost:5000/available-voices/${activeLang}`)
+        .then(res => res.json())
+        .then(data => {
+          setAvailableVoices(data.voices || []);
+          setSelectedVoice(data.defaultVoice || '');
+        })
+        .catch(err => console.error('Failed to fetch voices:', err));
+    }
+  }, [activeLang]);
 
   const fetchData = async (p: number) => {
     setLoading(true);
@@ -292,6 +200,7 @@ export default function ArtifactsPage() {
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setImagePreview('');
     setActiveLang('en');
     setModalStep(1);
     setShowModal(true);
@@ -301,66 +210,245 @@ export default function ArtifactsPage() {
     setEditingId(a.id);
     setActiveLang('en');
     setModalStep(1);
+    setImagePreview((a as any).image_url || '');
     setForm({
       name:            a.name,
       category:        a.category,
-      image_url:       a.image_url || '',
+      image_url:       (a as any).image_url || '',
+      image_file:      null,
       created_at:      a.created_at ? new Date(a.created_at).toISOString().slice(0, 10) : '',
       description_en:  (a as any).description_en  || '',
       description_fil: (a as any).description_fil || '',
       description_ja:  (a as any).description_ja  || '',
       description_es:  (a as any).description_es  || '',
       description_ko:  (a as any).description_ko  || '',
+      name_fil: (a as any).name_fil || '',
+      name_ja: (a as any).name_ja || '',
+      name_es: (a as any).name_es || '',
+      name_ko: (a as any).name_ko || '',
     });
     setShowModal(true);
   };
 
-  const handleTranslate = async () => {
-    if (!form.description_en.trim()) {
-      alert('Please enter an English description first.');
-      return;
-    }
-    setTranslating(true);
-    setTranslationProgress('Connecting to MyMemory...');
+  const handleDelete = async (id: string) => {
     try {
-      setTranslationProgress('Translating to all languages...');
-      const translations = await translateAllLanguages(form.description_en);
-      setForm(f => ({
-        ...f,
-        description_fil: translations.fil,
-        description_ja:  translations.ja,
-        description_es:  translations.es,
-        description_ko:  translations.ko,
-      }));
-      setTranslationProgress('Translation complete!');
-      setTimeout(() => setTranslationProgress(''), 2000);
+      const { error } = await supabase.from('artifacts').delete().eq('id', id);
+      if (error) throw error;
+      setDeleteConfirmId(null);
+      const newTotal = total - 1;
+      const newTotalPages = Math.max(1, Math.ceil(newTotal / PAGE_SIZE));
+      const safePage = Math.min(page, newTotalPages);
+      if (safePage !== page) setPage(safePage);
+      else fetchData(page);
     } catch (err: any) {
-      alert(`Translation failed: ${err.message}`);
-    } finally {
-      setTranslating(false);
+      alert(`Delete failed: ${err.message}`);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setForm(f => ({ ...f, image_file: file }));
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleTranslate = async () => {
+    if (!form.name.trim()) {
+      alert('Enter an English name first.');
+      return;
+    }
+    if (!form.description_en.trim()) {
+      alert('Enter an English description first.');
+      return;
+    }
+    
+    setTranslating(true);
+    setTranslateStep('Starting translation...');
+    
+    try {
+      const result = await translateAllLanguages(
+        form.name,
+        form.description_en,
+        setTranslateStep,
+        'user@example.com'
+      );
+      
+      console.log('Translation result:', result);
+      
+      setForm(f => ({ 
+        ...f, 
+        name_fil: result.name_fil || f.name_fil,
+        name_ja: result.name_ja || f.name_ja,
+        name_es: result.name_es || f.name_es,
+        name_ko: result.name_ko || f.name_ko,
+        description_fil: result.description_fil || f.description_fil,
+        description_ja: result.description_ja || f.description_ja,
+        description_es: result.description_es || f.description_es,
+        description_ko: result.description_ko || f.description_ko,
+      }));
+      
+      alert('✅ Translations completed successfully!');
+    } catch (err: any) {
+      console.error('[Translation error]', err);
+      alert(`Translation error: ${err.message}`);
+    } finally {
+      setTranslating(false);
+      setTranslateStep('');
+    }
+  };
+
+  // Updated audio handler with voice selection
+  const handleSaveAudio = async (langCode: LangCode) => {
+    if (!editingId) {
+      alert('Please save the artifact first before generating audio.');
+      return;
+    }
+    
+    const text = form[`description_${langCode}` as keyof AForm] as string;
+    if (!text?.trim()) {
+      alert(`No description for ${LANGUAGES.find(l => l.code === langCode)?.label} yet.`);
+      return;
+    }
+    
+    setAudioSaving(true);
+    setAudioStep(`Generating audio for ${langCode.toUpperCase()}...`);
+    setAudioStatus(prev => ({ ...prev, [langCode]: 'generating' }));
+    
+    try {
+      // Pass the selected voice and speaking rate
+      const result = await generateAudioViaAPI(
+        editingId, 
+        text, 
+        langCode, 
+        selectedVoice, 
+        speakingRate
+      );
+      
+      if (result.success) {
+        setAudioStatus(prev => ({ ...prev, [langCode]: 'success' }));
+        alert(`✅ Audio for ${LANGUAGES.find(l => l.code === langCode)?.label} saved! Voice: ${result.voiceUsed || selectedVoice}`);
+        
+        await fetchData(page);
+        
+        setTimeout(() => {
+          setAudioStatus(prev => {
+            const newStatus = { ...prev };
+            delete newStatus[langCode];
+            return newStatus;
+          });
+        }, 3000);
+      }
+    } catch (err: any) {
+      console.error('[Audio generation error]', err);
+      setAudioStatus(prev => ({ ...prev, [langCode]: 'error' }));
+      alert(`Audio error: ${err.message}`);
+      
+      setTimeout(() => {
+        setAudioStatus(prev => {
+          const newStatus = { ...prev };
+          delete newStatus[langCode];
+          return newStatus;
+        });
+      }, 3000);
+    } finally {
+      setAudioSaving(false);
+      setAudioStep('');
+    }
+  };
+
+  const handleGenerateAllAudio = async () => {
+    if (!editingId) {
+      alert('Please save the artifact first before generating audio.');
+      return;
+    }
+    
+    const descriptions: Partial<Record<LangCode, string>> = {
+      en: form.description_en,
+      fil: form.description_fil,
+      ja: form.description_ja,
+      es: form.description_es,
+      ko: form.description_ko,
+    };
+    
+    const hasAnyDesc = Object.values(descriptions).some(text => text?.trim());
+    if (!hasAnyDesc) {
+      alert('No descriptions available to generate audio from.');
+      return;
+    }
+    
+    setGeneratingAllAudio(true);
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const [langCode, text] of Object.entries(descriptions)) {
+      if (text?.trim()) {
+        try {
+          setAudioStep(`Generating audio for ${langCode.toUpperCase()}...`);
+          setAudioStatus(prev => ({ ...prev, [langCode]: 'generating' }));
+          
+          await generateAudioViaAPI(editingId, text, langCode as LangCode, selectedVoice, speakingRate);
+          
+          setAudioStatus(prev => ({ ...prev, [langCode]: 'success' }));
+          successCount++;
+          
+          setTimeout(() => {
+            setAudioStatus(prev => {
+              const newStatus = { ...prev };
+              delete newStatus[langCode];
+              return newStatus;
+            });
+          }, 3000);
+        } catch (err: any) {
+          console.error(`[Audio generation error for ${langCode}]`, err);
+          setAudioStatus(prev => ({ ...prev, [langCode]: 'error' }));
+          errorCount++;
+          
+          setTimeout(() => {
+            setAudioStatus(prev => {
+              const newStatus = { ...prev };
+              delete newStatus[langCode];
+              return newStatus;
+            });
+          }, 3000);
+        }
+      }
+    }
+    
+    setGeneratingAllAudio(false);
+    setAudioStep('');
+    
+    if (successCount > 0) {
+      alert(` Generated ${successCount} audio files successfully!${errorCount > 0 ? ` (${errorCount} failed)` : ''}`);
+      await fetchData(page);
+    } else if (errorCount > 0) {
+      alert(` Failed to generate ${errorCount} audio files. Please check the server.`);
+    }
+  };
+
+  const handleSaveArtifact = async () => {
+    if (!form.name.trim()) return alert('Please enter a name for the artifact.');
+    
     setSaving(true);
-    setSaveStep('Saving artifact…');
+    setSaveStep('Saving artifact...');
 
     try {
-      // 1. Upsert artifact row
       const payload = {
-        name:            form.name,
-        category:        form.category,
-        image_url:       form.image_url || null,
-        description_en:  form.description_en  || null,
+        name: form.name,
+        category: form.category,
+        image_url: form.image_url || null,
+        description_en: form.description_en || null,
         description_fil: form.description_fil || null,
-        description_ja:  form.description_ja  || null,
-        description_es:  form.description_es  || null,
-        description_ko:  form.description_ko  || null,
-        created_at:      form.created_at
-          ? new Date(form.created_at).toISOString()
-          : new Date().toISOString(),
+        description_ja: form.description_ja || null,
+        description_es: form.description_es || null,
+        description_ko: form.description_ko || null,
+        name_fil: form.name_fil || null,
+        name_ja: form.name_ja || null,
+        name_es: form.name_es || null,
+        name_ko: form.name_ko || null,
+        created_at: form.created_at ? new Date(form.created_at).toISOString() : new Date().toISOString(),
       };
+
+      console.log('Saving payload:', payload);
 
       let result;
       if (editingId) {
@@ -368,251 +456,290 @@ export default function ArtifactsPage() {
       } else {
         result = await supabase.from('artifacts').insert(payload).select().single();
       }
-      if (result.error) throw new Error(`DB error: ${result.error.message}`);
+      
+      if (result.error) throw result.error;
       const artifact = result.data;
 
-      // 2. QR code
-      setSaveStep('Generating QR code…');
-      const qrValue   = artifact.qr_value || `${window.location.origin}/artifact/${artifact.id}`;
-      // @ts-ignore
-      const qrDataUrl = await QRCode.toDataURL(qrValue, { width: 300, margin: 2 });
-      const qrBlob    = dataUrlToBlob(qrDataUrl);
+      let imageUrl = form.image_url;
+      if (form.image_file) {
+        setSaveStep('Uploading image...');
+        imageUrl = await uploadImage(artifact.id, form.image_file);
+        await supabase.from('artifacts').update({ image_url: imageUrl }).eq('id', artifact.id);
+      }
+
+      setSaveStep('Generating QR code...');
+      const qrValue = artifact.qr_value || `${window.location.origin}/artifact/${artifact.id}`;
+      const qrDataUrl = await QRCode.toDataURL(qrValue);
+      const qrBlob = dataUrlToBlob(qrDataUrl);
 
       const { error: qrErr } = await supabase.storage
         .from('qrcode')
         .upload(`${artifact.id}.png`, qrBlob, { contentType: 'image/png', upsert: true });
-      if (qrErr) throw new Error(`QR upload: ${qrErr.message}`);
-
-      const { data: qrUrlData } = supabase.storage.from('qrcode').getPublicUrl(`${artifact.id}.png`);
-
-  
-      const audioUrls: Record<string, string> = {};
-
-      for (const lang of LANGUAGES) {
-        const desc = form[`description_${lang.code}` as keyof AForm] as string;
-        if (!desc?.trim()) continue;
-
-        setSaveStep(`Generating ${lang.label} audio…`);
-        try {
-          const audioBlob = await generateTTSWav(desc, lang.bcp47);
-          console.log(`[TTS] ${lang.label}: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
-
-          if (audioBlob.size < 500) {
-            console.warn(`[TTS] ${lang.label} blob too small — skipping upload`);
-            continue;
-          }
-
-          const url = await uploadAudio(artifact.id, lang.code as LangCode, audioBlob);
-          audioUrls[lang.dbAudio] = url;
-          console.log(`[TTS] ${lang.label} uploaded → ${url}`);
-        } catch (ttsErr: any) {
-          console.warn(`TTS skipped (${lang.label}):`, ttsErr.message);
-        }
+      
+      if (!qrErr) {
+        const { data: qrUrlData } = supabase.storage.from('qrcode').getPublicUrl(`${artifact.id}.png`);
+        await supabase.from('artifacts').update({ qr_code: qrUrlData.publicUrl }).eq('id', artifact.id);
       }
 
-      // 4. Final update — QR + audio URLs
-      setSaveStep('Finishing up…');
-      const { error: finalErr } = await supabase
-        .from('artifacts')
-        .update({ qr_value: qrValue, qr_code: qrUrlData.publicUrl, ...audioUrls })
-        .eq('id', artifact.id);
-      if (finalErr) throw new Error(`Final update: ${finalErr.message}`);
+      setSaveStep('Generating audio files...');
+      try {
+        const descriptions: Partial<Record<LangCode, string>> = {
+          en: form.description_en,
+          fil: form.description_fil,
+          ja: form.description_ja,
+          es: form.description_es,
+          ko: form.description_ko,
+        };
+        
+        for (const [langCode, text] of Object.entries(descriptions)) {
+          if (text?.trim()) {
+            await generateAudioViaAPI(artifact.id, text, langCode as LangCode, selectedVoice, speakingRate);
+          }
+        }
+      } catch (audioErr: any) {
+        console.warn('[Audio generation warning]', audioErr.message);
+      }
 
       setShowModal(false);
-      fetchData(page);
+      await fetchData(page);
+      alert('✅ Artifact saved successfully!');
     } catch (err: any) {
-      console.error('[ArtifactsPage]', err);
-      alert(err.message || 'Something went wrong');
+      console.error('[ArtifactsPage] Save error:', err);
+      alert(`Error: ${err.message}`);
     } finally {
       setSaving(false);
       setSaveStep('');
     }
   };
 
-  const totalPages    = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const activeDescKey = `description_${activeLang}` as keyof AForm;
+  const activeNameKey = `name_${activeLang}` as keyof AForm;
+
+  const getAudioStatusIcon = (langCode: string) => {
+    const status = audioStatus[langCode];
+    if (status === 'generating') return <span className="spinner" style={{ marginLeft: '4px' }} />;
+    if (status === 'success') return <span style={{ marginLeft: '4px', color: '#16A34A' }}>✓</span>;
+    if (status === 'error') return <span style={{ marginLeft: '4px', color: '#EF4444' }}>✗</span>;
+    return null;
+  };
 
   return (
-    <div className="page-shell">
-
-      <div className="top-bar">
+    <div className="page-shell" style={{ backgroundColor: '#F0FDF4', minHeight: '100vh' }}>
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .spinner {
+          display: inline-block;
+          width: 14px;
+          height: 14px;
+          border: 2px solid currentColor;
+          border-top-color: transparent;
+          border-radius: 50%;
+          animation: spin 0.6s linear infinite;
+        }
+      `}</style>
+      
+      <div className="top-bar" style={{ padding: '24px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: '#FFFFFF', borderBottom: '1px solid #DCFCE7' }}>
         <div>
-          <div className="page-eyebrow">— Sacred Collection</div>
-          <h1 className="page-title">Artifacts</h1>
-          <div className="page-gold-line" />
-          <p className="page-subtitle">
-            Manage sacred vessels, vestments, books, and devotional objects.
-          </p>
+          <div className="page-eyebrow" style={{ color: '#16A34A', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>— Sacred Collection</div>
+          <h1 className="page-title" style={{ color: '#1F2937', fontSize: '2rem', fontWeight: '700', marginTop: '8px', marginBottom: 0 }}>Artifacts</h1>
+          <div className="page-gold-line" style={{ height: '3px', width: '60px', backgroundColor: '#16A34A', margin: '12px 0 16px 0' }} />
+          <p className="page-subtitle" style={{ color: '#4B5563', marginTop: '8px' }}>Manage sacred vessels, vestments, books, and devotional objects.</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>+ Add Artifact</button>
+        <button className="btn btn-primary" onClick={openCreate} style={{ backgroundColor: '#16A34A', border: 'none', padding: '10px 20px', borderRadius: '12px', color: '#FFFFFF', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <FiPlus size={18} /> Add Artifact
+        </button>
       </div>
 
-      <div className="panel">
+      <div className="panel" style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', margin: '24px 32px 32px 32px', overflow: 'hidden' }}>
         {error && (
-          <div className="alert-box">
-            <span className="alert-ico">!</span>
-            <span>{error}</span>
+          <div className="alert-box" style={{ margin: '16px', backgroundColor: '#FEE2E2', borderLeft: '4px solid #EF4444', padding: '12px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="alert-ico" style={{ color: '#EF4444' }}>!</span>
+            <span style={{ color: '#991B1B' }}>{error}</span>
           </div>
         )}
 
-        <div className="table-wrap">
+        <div className="table-wrap" style={{ overflowX: 'auto' }}>
           {loading ? (
-            <div className="skeleton-table">
+            <div className="skeleton-table" style={{ padding: '20px' }}>
               {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                <div key={i} className="skeleton-row">
-                  <span className="skeleton skeleton-row-index" />
-                  <span className="skeleton skeleton-row-line" />
-                  <span className="skeleton skeleton-row-line short" />
-                  <span className="skeleton skeleton-row-line short" />
-                  <span className="skeleton skeleton-row-actions" />
-                </div>
+                <div key={i} className="skeleton-row" style={{ height: '60px', backgroundColor: '#F3F4F6', marginBottom: '8px', borderRadius: '8px' }} />
               ))}
             </div>
           ) : (
-            <table className="table">
+            <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th>#</th><th>Name</th><th>Category</th>
-                  <th>QR</th><th>Languages</th><th>Audio</th><th>Actions</th>
+                  <th style={{ textAlign: 'left', padding: '16px', backgroundColor: '#F0FDF4', color: '#15803D', fontWeight: '600' }}>#</th>
+                  <th style={{ textAlign: 'left', padding: '16px', backgroundColor: '#F0FDF4', color: '#15803D', fontWeight: '600' }}>Name</th>
+                  <th style={{ textAlign: 'left', padding: '16px', backgroundColor: '#F0FDF4', color: '#15803D', fontWeight: '600' }}>Category</th>
+                  <th style={{ textAlign: 'left', padding: '16px', backgroundColor: '#F0FDF4', color: '#15803D', fontWeight: '600' }}>Image</th>
+                  <th style={{ textAlign: 'left', padding: '16px', backgroundColor: '#F0FDF4', color: '#15803D', fontWeight: '600' }}>QR</th>
+                  <th style={{ textAlign: 'left', padding: '16px', backgroundColor: '#F0FDF4', color: '#15803D', fontWeight: '600' }}>Languages</th>
+                  <th style={{ textAlign: 'left', padding: '16px', backgroundColor: '#F0FDF4', color: '#15803D', fontWeight: '600' }}>Read</th>
+                  <th style={{ textAlign: 'left', padding: '16px', backgroundColor: '#F0FDF4', color: '#15803D', fontWeight: '600' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {artifacts.map((a, idx) => {
-                  const art       = a as any;
-                  const withDesc  = LANGUAGES.filter(l => art[l.dbDesc]);
-                  const withAudio = LANGUAGES.filter(l => art[l.dbAudio] && art[l.dbAudio] !== 'No audio yet');
+                  const art = a as any;
+                  const withDesc = LANGUAGES.filter(l => art[l.dbDesc]);
+                  const withAudio = LANGUAGES.filter(l => art[l.dbAudio]);
 
                   return (
-                    <tr key={a.id}>
-                      <td className="td-muted">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                      <td><strong>{a.name}</strong></td>
-                      <td><span className="category-badge">{a.category}</span></td>
-                      <td>
-                        {a.qr_code
-                          ? <img src={a.qr_code} className="qr-thumb" alt={`QR for ${a.name}`} />
-                          : <span className="td-muted">—</span>}
+                    <tr key={a.id} style={{ borderBottom: '1px solid #F0FDF4', transition: 'background-color 0.2s' }}>
+                      <td className="td-muted" style={{ padding: '16px', color: '#6B7280' }}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                      <td style={{ padding: '16px', fontWeight: 600, color: '#1F2937' }}><strong>{a.name}</strong></td>
+                      <td style={{ padding: '16px' }}><span className="category-badge" style={{ backgroundColor: '#DCFCE7', color: '#15803D', borderRadius: '9999px', padding: '4px 12px', fontSize: '0.75rem', fontWeight: '500', display: 'inline-block' }}>{a.category}</span></td>
+                      <td style={{ padding: '16px' }}>
+                        {art.image_url ? <img src={art.image_url} className="image-thumb" alt={a.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }} /> : <span className="td-muted" style={{ color: '#9CA3AF' }}>—</span>}
                       </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {withDesc.length > 0
-                            ? withDesc.map(l => (
-                                <span key={l.code} className="lang-chip" title={l.label}>
-                                  {l.flag} {l.code.toUpperCase()}
-                                </span>
-                              ))
-                            : <span className="td-muted">—</span>}
+                      <td style={{ padding: '16px' }}>
+                        {a.qr_code ? <img src={a.qr_code} className="qr-thumb" alt={`QR for ${a.name}`} style={{ width: 40, height: 40 }} /> : <span className="td-muted" style={{ color: '#9CA3AF' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {withDesc.length > 0 ? withDesc.map(l => (
+                            <span key={l.code} className="lang-chip" title={`${l.label}${withAudio.find(audio => audio.code === l.code) ? ' (Audio available)' : ''}`} style={{ backgroundColor: '#F0FDF4', border: '1px solid #DCFCE7', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', color: '#15803D', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              {l.flag} {l.code.toUpperCase()}
+                              {withAudio.find(audio => audio.code === l.code) && <span style={{ fontSize: '0.65rem' }}>🔊</span>}
+                            </span>
+                          )) : <span className="td-muted" style={{ color: '#9CA3AF' }}>—</span>}
                         </div>
                       </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {withAudio.length > 0
-                            ? withAudio.map(l => (
-                                <a key={l.code} href={art[l.dbAudio]}
-                                  target="_blank" rel="noreferrer"
-                                  className="lang-chip lang-chip-audio"
-                                  title={`Play ${l.label} audio`}>
-                                  {l.flag} ▶
-                                </a>
-                              ))
-                            : <span className="td-muted">—</span>}
+                      <td style={{ padding: '16px' }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {withDesc.length > 0 ? withDesc.map(l => (
+                            <button
+                              key={l.code}
+                              className="btn btn-ghost btn-sm"
+                              style={{ color: '#16A34A', background: 'transparent', border: 'none', fontSize: '0.75rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              onClick={() => {
+                                if (art[l.dbAudio] && art[l.dbAudio] !== 'No audio yet') {
+                                  const audio = new Audio(art[l.dbAudio]);
+                                  audio.play().catch(err => console.warn('Audio playback failed:', err));
+                                } else {
+                                  const desc = art[l.dbDesc] as string;
+                                  if (!desc) return;
+                                  if (!('speechSynthesis' in window)) return alert('Speech synthesis is not supported in this browser.');
+                                  window.speechSynthesis.cancel();
+                                  const utter = new SpeechSynthesisUtterance(desc);
+                                  utter.lang = l.mmLang;
+                                  window.speechSynthesis.speak(utter);
+                                }
+                              }}
+                            >
+                              <FiVolume2 size={12} /> {l.code.toUpperCase()}
+                            </button>
+                          )) : <span className="td-muted" style={{ color: '#9CA3AF' }}>—</span>}
                         </div>
                       </td>
-                      <td>
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(a)}>Edit</button>
+                      <td style={{ padding: '16px' }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => openEdit(a)} style={{ color: '#16A34A', background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <FiEdit2 size={14} /> Edit
+                          </button>
+                          {deleteConfirmId === a.id ? (
+                            <>
+                              <button className="btn btn-sm" style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDelete(a.id)}>
+                                <FiCheck size={12} /> Confirm
+                              </button>
+                              <button className="btn btn-ghost btn-sm" onClick={() => setDeleteConfirmId(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <FiX size={12} /> Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <button className="btn btn-ghost btn-sm" style={{ color: '#dc2626', background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setDeleteConfirmId(a.id)}>
+                              <FiTrash2 size={14} /> Delete
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
-                {artifacts.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="empty-cell">
-                      No artifacts found. Create your first sacred artifact above.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           )}
         </div>
 
-        <div className="pagination-row">
-          <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-            ← Previous
+        <div className="pagination-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderTop: '1px solid #F0FDF4', backgroundColor: '#F9FAFB' }}>
+          <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)} style={{ padding: '8px 16px', backgroundColor: '#F0FDF4', border: '1px solid #DCFCE7', borderRadius: '10px', cursor: page <= 1 ? 'not-allowed' : 'pointer', opacity: page <= 1 ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <FiChevronLeft size={14} /> Previous
           </button>
-          <span className="td-muted">Page {page} of {totalPages}</span>
-          <button className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-            Next →
+          <span className="td-muted" style={{ color: '#6B7280' }}>Page {page} of {totalPages}</span>
+          <button className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} style={{ padding: '8px 16px', backgroundColor: '#F0FDF4', border: '1px solid #DCFCE7', borderRadius: '10px', cursor: page >= totalPages ? 'not-allowed' : 'pointer', opacity: page >= totalPages ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            Next <FiChevronRight size={14} />
           </button>
         </div>
       </div>
 
+      {/* Modal */}
       {showModal && (
-        <div
-          className="modal-backdrop"
-          onClick={(e) => e.target === e.currentTarget && !saving && setShowModal(false)}
-        >
-          <div className="modal-panel modal-md" onClick={(e) => e.stopPropagation()}>
-
-            <div className="modal-header">
+        <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && !saving && setShowModal(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div className="modal-panel modal-lg" onClick={e => e.stopPropagation()} style={{ backgroundColor: '#FFFFFF', borderRadius: '24px', width: '90%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 35px -10px rgba(0,0,0,0.2)', borderTop: '4px solid #16A34A' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '24px 28px 12px 28px', borderBottom: '1px solid #F0FDF4' }}>
               <div>
-                <div className="modal-eyebrow">— Sacred Collection</div>
-                <h3>{editingId ? 'Edit Artifact' : 'New Artifact'}</h3>
-                <div className="modal-goldline" />
+                <div className="modal-eyebrow" style={{ color: '#16A34A', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>— Sacred Collection</div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginTop: '4px', marginBottom: '4px', color: '#1F2937' }}>{editingId ? 'Edit Artifact' : 'New Artifact'}</h3>
+                <div className="modal-goldline" style={{ height: '2px', width: '50px', backgroundColor: '#16A34A', marginTop: '8px' }} />
               </div>
-              <button className="modal-close" onClick={() => setShowModal(false)} disabled={saving}>✕</button>
+              <button className="modal-close" onClick={() => !saving && setShowModal(false)} disabled={saving} style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6B7280' }}>
+                <FiX size={20} />
+              </button>
             </div>
 
-            <div className="modal-step-indicator">
-              <div className={`step ${modalStep === 1 ? 'step-active' : 'step-completed'}`}>
-                <span className="step-number">1</span>
-                <span className="step-label">Basic Info</span>
+            <div className="modal-step-indicator" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '20px 28px', backgroundColor: '#F9FAFB', borderBottom: '1px solid #F0FDF4' }}>
+              <div className={`step ${modalStep === 1 ? 'step-active' : 'step-completed'}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="step-number" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '9999px', backgroundColor: modalStep === 1 ? '#16A34A' : '#DCFCE7', color: modalStep === 1 ? '#FFF' : '#15803D', fontWeight: 'bold' }}>1</span>
+                <span className="step-label" style={{ fontWeight: 500, color: '#1F2937' }}>Basic Info</span>
               </div>
-              <div className="step-line" />
-              <div className={`step ${modalStep === 2 ? 'step-active' : ''}`}>
-                <span className="step-number">2</span>
-                <span className="step-label">Descriptions</span>
+              <div className="step-line" style={{ width: '40px', height: '1px', backgroundColor: '#D1D5DB' }} />
+              <div className={`step ${modalStep === 2 ? 'step-active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="step-number" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '9999px', backgroundColor: modalStep === 2 ? '#16A34A' : '#E5E7EB', color: modalStep === 2 ? '#FFF' : '#6B7280', fontWeight: 'bold' }}>2</span>
+                <span className="step-label" style={{ fontWeight: 500, color: modalStep === 2 ? '#1F2937' : '#6B7280' }}>Descriptions</span>
               </div>
             </div>
 
-            <div className="modal-body">
-              <form
-                onSubmit={modalStep === 2 ? handleSubmit : (e) => { e.preventDefault(); setModalStep(2); }}
-                className="form-stack"
-              >
+            <div className="modal-body" style={{ padding: '28px' }}>
+              <div className="form-stack" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {modalStep === 1 && (
                   <>
-                    <div className="form-row-2">
+                    <div className="form-row-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                       <div className="form-group">
-                        <label htmlFor="name">Name *</label>
-                        <input id="name" type="text" placeholder="e.g. Chalice of St. John"
-                          value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                        <label htmlFor="name" style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#1F2937' }}>Name (English) *</label>
+                        <input id="name" type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Chalice of St. John" style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '12px', transition: 'all 0.2s' }} />
                       </div>
                       <div className="form-group">
-                        <label htmlFor="category">Category</label>
-                        <select id="category" value={form.category}
-                          onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                        <label htmlFor="category" style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#1F2937' }}>Category</label>
+                        <select id="category" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '12px', backgroundColor: '#FFF' }}>
                           {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
                     </div>
-                    <div className="form-row-2">
+
+                    <div className="form-row-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                       <div className="form-group">
-                        <label htmlFor="image_url">Image URL</label>
-                        <input id="image_url" type="url" placeholder="https://example.com/image.jpg"
-                          value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
+                        <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#1F2937' }}>Upload Image</label>
+                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ width: '100%', padding: '8px' }} />
                       </div>
                       <div className="form-group">
-                        <label htmlFor="created_at">Date Created</label>
-                        <input id="created_at" type="date" value={form.created_at}
-                          onChange={(e) => setForm({ ...form, created_at: e.target.value })} />
+                        <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#1F2937' }}>Image URL (optional)</label>
+                        <input type="url" value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '12px' }} />
                       </div>
                     </div>
-                    {form.image_url && (
+
+                    <div className="form-group">
+                      <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#1F2937' }}>Date Created (optional)</label>
+                      <input type="date" value={form.created_at} onChange={e => setForm(f => ({ ...f, created_at: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '12px' }} />
+                    </div>
+
+                    {(imagePreview || form.image_url) && (
                       <div className="form-group">
-                        <label>Image Preview</label>
-                        <div style={{ width: '50%', maxHeight: '100px', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f0f0f0' }}>
-                          <img src={form.image_url} alt="Preview" style={{ width: '50%', height: '50%', objectFit: 'cover' }} />
-                        </div>
+                        <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#1F2937' }}>Image Preview</label>
+                        <img src={imagePreview || form.image_url} alt="preview" style={{ maxWidth: '220px', borderRadius: '12px', border: '1px solid #E5E7EB' }} />
                       </div>
                     )}
                   </>
@@ -621,106 +748,255 @@ export default function ArtifactsPage() {
                 {modalStep === 2 && (
                   <>
                     <div className="form-group">
-                      <div className="lang-section-header">
-                        <label>Description</label>
-                        <div className="lang-tabs">
-                          {LANGUAGES.map(l => (
-                            <button key={l.code} type="button"
-                              className={`lang-tab ${activeLang === l.code ? 'lang-tab-active' : ''}`}
-                              onClick={() => setActiveLang(l.code as LangCode)}>
-                              {l.flag} {l.label}
-                              {(form[`description_${l.code}` as keyof AForm] as string)?.trim() && (
-                                <span className="lang-filled-dot" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="lang-desc-wrap">
-                        <textarea
-                          key={activeLang}
-                          placeholder={
-                            activeLang === 'en'
-                              ? 'Describe the artifact in English. Use "Auto-translate" to fill other languages.'
-                              : translating ? 'Translating…'
-                              : `${LANGUAGES.find(l => l.code === activeLang)?.label} — edit manually or auto-translate.`
-                          }
-                          value={form[activeDescKey] as string}
-                          onChange={(e) => setForm({ ...form, [activeDescKey]: e.target.value })}
-                          rows={5}
-                        />
-                        {activeLang === 'en' && (
-                          <button type="button" className="btn btn-translate"
-                            onClick={handleTranslate}
-                            disabled={translating || !form.description_en.trim()}>
-                            {translating
-                              ? <><span className="spinner" /> {translationProgress || 'Translating…'}</>
-                              : <>🌐 Auto-translate (MyMemory — free)</>
-                            }
+                      <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#1F2937' }}>Descriptions (Multi-language)</label>
+                      
+                      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={handleTranslate}
+                          disabled={translating || !form.description_en.trim()}
+                          style={{
+                            padding: '8px 16px',
+                            backgroundColor: '#16A34A',
+                            color: '#FFF',
+                            border: 'none',
+                            borderRadius: '10px',
+                            cursor: (translating || !form.description_en.trim()) ? 'not-allowed' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            opacity: (translating || !form.description_en.trim()) ? 0.6 : 1,
+                          }}
+                        >
+                          {translating ? (
+                            <>
+                              <span className="spinner" style={{ borderColor: '#FFF', borderTopColor: 'transparent' }} />
+                              {translateStep || 'Translating...'}
+                            </>
+                          ) : (
+                            <>
+                              <FiGlobe size={14} />
+                              Auto-translate from English
+                            </>
+                          )}
+                        </button>
+                        
+                        {/* Voice Settings Button */}
+                        <button
+                          type="button"
+                          onClick={() => setShowVoiceControls(!showVoiceControls)}
+                          style={{
+                            padding: '8px 16px',
+                            backgroundColor: showVoiceControls ? '#16A34A' : '#6B7280',
+                            color: '#FFF',
+                            border: 'none',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                          }}
+                        >
+                          <FiMic size={14} />
+                          {showVoiceControls ? 'Hide Voice Settings' : 'Voice Settings'}
+                        </button>
+                        
+                        {editingId && (
+                          <button
+                            type="button"
+                            onClick={handleGenerateAllAudio}
+                            disabled={generatingAllAudio || audioSaving}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: '#6B7280',
+                              color: '#FFF',
+                              border: 'none',
+                              borderRadius: '10px',
+                              cursor: (generatingAllAudio || audioSaving) ? 'not-allowed' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              fontSize: '0.875rem',
+                              fontWeight: 500,
+                              opacity: (generatingAllAudio || audioSaving) ? 0.6 : 1,
+                            }}
+                          >
+                            {(generatingAllAudio || audioSaving) ? (
+                              <>
+                                <span className="spinner" style={{ borderColor: '#FFF', borderTopColor: 'transparent' }} />
+                                {audioStep || 'Generating Audio...'}
+                              </>
+                            ) : (
+                              <>
+                                <FiVolume2 size={14} />
+                                Generate All Audio
+                              </>
+                            )}
                           </button>
                         )}
                       </div>
-
-                      {translationProgress && !translating && (
-                        <div className="translation-success">✓ {translationProgress}</div>
-                      )}
-
-                      {activeLang === 'en' && LANGUAGES.some(l =>
-                        l.code !== 'en' && (form[`description_${l.code}` as keyof AForm] as string)?.trim()
-                      ) && (
-                        <div className="translation-preview">
-                          {LANGUAGES.filter(l => l.code !== 'en').map(l => {
-                            const val = (form[`description_${l.code}` as keyof AForm] as string)?.trim();
-                            return val ? (
-                              <div key={l.code} className="translation-preview-item">
-                                <span className="translation-preview-flag">{l.flag}</span>
-                                <span className="translation-preview-text">
-                                  {val.length > 70 ? val.slice(0, 70) + '…' : val}
-                                </span>
-                              </div>
-                            ) : null;
-                          })}
+                      
+                      {/* Voice Controls Panel */}
+                      {showVoiceControls && (
+                        <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#F0FDF4', borderRadius: '12px', border: '1px solid #DCFCE7' }}>
+                          <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', fontWeight: 600, color: '#1F2937' }}>Voice Settings</h4>
+                          
+                          {/* Voice Selection */}
+                          <div style={{ marginBottom: '12px' }}>
+                            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 500, color: '#15803D' }}>
+                              Voice for {LANGUAGES.find(l => l.code === activeLang)?.label}
+                            </label>
+                            <select
+                              value={selectedVoice}
+                              onChange={(e) => setSelectedVoice(e.target.value)}
+                              style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFF' }}
+                            >
+                              {availableVoices.map((voice) => (
+                                <option key={voice.name} value={voice.name}>
+                                  {voice.description} ({voice.gender}) - {voice.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          
+                          {/* Speaking Speed */}
+                          <div style={{ marginBottom: '12px' }}>
+                            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 500, color: '#15803D' }}>
+                              Speaking Speed: {speakingRate.toFixed(1)}x
+                            </label>
+                            <input
+                              type="range"
+                              min="0.5"
+                              max="2.0"
+                              step="0.1"
+                              value={speakingRate}
+                              onChange={(e) => setSpeakingRate(parseFloat(e.target.value))}
+                              style={{ width: '100%' }}
+                            />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#6B7280', marginTop: '4px' }}>
+                              <span>Slower (0.5x)</span>
+                              <span>Normal (1.0x)</span>
+                              <span>Faster (2.0x)</span>
+                            </div>
+                          </div>
                         </div>
                       )}
-                    </div>
-
-                    <div className="audio-notice">
-                      <span className="audio-notice-ico">🔊</span>
-                      <span>
-                        Audio saved to <code>audio/{'{id}'}/{'{lang}'}.webm</code> — one folder per artifact.
-                      </span>
+                      
+                      {/* Language Tabs */}
+                      <div style={{ marginBottom: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {LANGUAGES.map(l => (
+                          <button
+                            key={l.code}
+                            type="button"
+                            className={`lang-tab ${activeLang === l.code ? 'lang-tab-active' : ''}`}
+                            onClick={() => setActiveLang(l.code as LangCode)}
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: '9999px',
+                              border: '1px solid #D1D5DB',
+                              backgroundColor: activeLang === l.code ? '#16A34A' : 'transparent',
+                              color: activeLang === l.code ? '#FFF' : '#1F2937',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {l.flag} {l.label}
+                            {getAudioStatusIcon(l.code)}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      {activeLang !== 'en' && (
+                        <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#F0FDF4', borderRadius: '12px' }}>
+                          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#1F2937', fontSize: '0.8rem' }}>
+                            Translated Name ({LANGUAGES.find(l => l.code === activeLang)?.label})
+                          </label>
+                          <input
+                            type="text"
+                            value={form[activeNameKey] as string || ''}
+                            onChange={e => setForm(f => ({ ...f, [activeNameKey]: e.target.value }))}
+                            placeholder={`Translated name in ${LANGUAGES.find(l => l.code === activeLang)?.label}...`}
+                            style={{ width: '100%', padding: '8px 12px', border: '1px solid #D1D5DB', borderRadius: '12px', fontSize: '0.9rem' }}
+                          />
+                        </div>
+                      )}
+                      
+                      <textarea
+                        rows={8}
+                        value={form[activeDescKey] as string}
+                        onChange={e => setForm(f => ({ ...f, [activeDescKey]: e.target.value }))}
+                        placeholder={`Enter description in ${LANGUAGES.find(l => l.code === activeLang)?.label}...`}
+                        style={{ width: '100%', padding: '12px', border: '1px solid #D1D5DB', borderRadius: '16px', fontFamily: 'inherit', transition: 'all 0.2s' }}
+                      />
+                      
+                      {editingId && (
+                        <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveAudio(activeLang)}
+                            disabled={audioSaving || !form[activeDescKey]}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: 'transparent',
+                              border: '1px solid #DCFCE7',
+                              borderRadius: '9999px',
+                              color: '#16A34A',
+                              cursor: (audioSaving || !form[activeDescKey]) ? 'not-allowed' : 'pointer',
+                              fontSize: '0.75rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              opacity: (audioSaving || !form[activeDescKey]) ? 0.5 : 1,
+                            }}
+                          >
+                            {audioSaving && audioStep.includes(activeLang.toUpperCase()) ? (
+                              <>
+                                <span className="spinner" />
+                                {audioStep}
+                              </>
+                            ) : (
+                              <>
+                                <FiUploadCloud size={12} />
+                                Generate & Save Audio for {LANGUAGES.find(l => l.code === activeLang)?.label}
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
 
-                <div className="modal-actions">
-                  {modalStep === 2 && (
-                    <button type="button" className="btn btn-ghost" onClick={() => setModalStep(1)} disabled={saving}>
-                      ← Back
+                <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #F0FDF4' }}>
+                  {modalStep === 2 ? (
+                    <button className="btn btn-ghost" onClick={() => setModalStep(1)} disabled={saving} style={{ padding: '8px 20px', backgroundColor: '#F3F4F6', border: 'none', borderRadius: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <FiChevronLeft size={14} /> Back
                     </button>
-                  )}
-                  {modalStep === 1 && (
-                    <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)} disabled={saving}>
+                  ) : (
+                    <button className="btn btn-ghost" onClick={() => !saving && setShowModal(false)} style={{ padding: '8px 20px', backgroundColor: '#F3F4F6', border: 'none', borderRadius: '12px', cursor: 'pointer' }}>
                       Cancel
                     </button>
                   )}
                   <div style={{ flex: 1 }} />
                   {modalStep === 1 && (
-                    <button type="submit" className="btn btn-primary" disabled={!form.name.trim()}>
-                      Next →
+                    <button className="btn btn-primary" onClick={() => setModalStep(2)} disabled={!form.name.trim()} style={{ backgroundColor: '#16A34A', border: 'none', padding: '8px 24px', borderRadius: '12px', color: '#FFF', fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      Next <FiChevronRight size={14} />
                     </button>
                   )}
                   {modalStep === 2 && (
-                    <button type="submit" className="btn btn-primary" disabled={saving}>
-                      {saving
-                        ? <><span className="spinner spinner-white" /> {saveStep || 'Processing…'}</>
-                        : editingId ? 'Update Artifact' : 'Create Artifact'
-                      }
+                    <button className="btn btn-success" onClick={handleSaveArtifact} disabled={saving} style={{ backgroundColor: '#16A34A', border: 'none', padding: '8px 24px', borderRadius: '12px', color: '#FFF', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {saving ? <><span className="spinner" style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid #FFF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> {saveStep}</> : editingId ? 'Update Artifact' : 'Create Artifact'}
                     </button>
                   )}
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         </div>

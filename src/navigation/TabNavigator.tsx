@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Dimensions,
+  Easing,
 } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,79 +16,112 @@ import * as Haptics from 'expo-haptics';
 // Screens
 import Home from '../screens/main/Home';
 import QRScanner from '../screens/main/QRScanner';
-import Profile from '../screens/main/Profile';
-import Settings from '../screens/main/Settings';
-
-
-
-const { width } = Dimensions.get('window');
+import SettingsStack from './SettingsStack';
 
 // ─────────────────────────────────────────────
-// Design Tokens
+// SACRED HERITAGE THEME TOKENS
 // ─────────────────────────────────────────────
-const V = {
-  ink: '#111',
-  muted: 'rgba(0,0,0,0.4)',
+const COLORS = {
+  // Light, warm background (from HomeScreen)
+  background: '#FFFCF8',  // Creamy off-white
+  
+  // Glass surface colors
+  surface: 'rgba(255,255,255,0.85)',
+  border: '#EAE5DF',  // Subtle warm border
+  borderLight: 'rgba(199,168,75,0.25)', // Gold-tinted border
+  
+  // Text colors (from HomeScreen palette)
+  textPrimary: '#1E1B17',  // Deep warm black
+  textSecondary: '#5C564B',  // Warm taupe
+  textMuted: '#9B948A',  // Soft warm gray
+  
+  // Brand accent - Gold (from HomeScreen)
+  gold: '#C7A84B',
+  goldWarm: '#D4B86A',
+  goldSoft: '#FDF8F0',
+  
+  // Crimson for special actions
+  crimson: '#E74C3C',
+  
+  // Shadow color
+  shadow: '#1E1B17',
 };
 
 // ─────────────────────────────────────────────
-// Tabs (excluding center scan)
+// TABS
 // ─────────────────────────────────────────────
 const TABS = [
   {
     key: 'Home',
     label: 'Home',
-    icon: (focused: boolean) => (
-      <Ionicons
-        name={focused ? 'home' : 'home-outline'}
-        size={20}
-        color={focused ? V.ink : V.muted}
-      />
-    ),
+    activeIcon: 'home',
+    inactiveIcon: 'home-outline',
   },
   {
-    key: 'Profile',
-    label: 'Profile',
-    icon: (focused: boolean) => (
-      <Ionicons
-        name={focused ? 'person' : 'person-outline'}
-        size={20}
-        color={focused ? V.ink : V.muted}
-      />
-    ),
+    key: 'Settings',
+    label: 'Settings',
+    activeIcon: 'grid',
+    inactiveIcon: 'grid-outline',
   },
 ];
 
 // ─────────────────────────────────────────────
-// MAIN NAVIGATOR (Swipe Enabled)
+// MAIN NAVIGATOR
 // ─────────────────────────────────────────────
 export default function TabNavigator() {
   const pagerRef = useRef<PagerView>(null);
-  const [index, setIndex] = useState(0);
-  const [showSettings, setShowSettings] = useState(false);
   const insets = useSafeAreaInsets();
 
-  const goToPage = (i: number) => {
+  const [index, setIndex] = useState(0);
+  const [navbarVisible, setNavbarVisible] = useState(true);
+
+  const navbarTranslate = useRef(new Animated.Value(0)).current;
+  const navbarOpacity = useRef(new Animated.Value(1)).current;
+
+  // ─────────────────────────────
+  // NAVBAR ANIMATION
+  // ─────────────────────────────
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(navbarTranslate, {
+        toValue: navbarVisible ? 0 : 120,
+        duration: 320,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(navbarOpacity, {
+        toValue: navbarVisible ? 1 : 0,
+        duration: 220,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [navbarVisible]);
+
+  // ─────────────────────────────
+  // NAVIGATION
+  // ─────────────────────────────
+  const goToPage = async (i: number) => {
     pagerRef.current?.setPage(i);
     setIndex(i);
-    if (i !== 2) {
-      setShowSettings(false);
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       
-      {/* SWIPE PAGES */}
+      {/* PAGES */}
       <PagerView
         ref={pagerRef}
         style={{ flex: 1 }}
         initialPage={0}
-        onPageSelected={(e) => setIndex(e.nativeEvent.position)}
+        onPageSelected={(e) =>
+          setIndex(e.nativeEvent.position)
+        }
       >
         <View key="0">
-          <Home />
+          <Home setNavbarVisible={setNavbarVisible} />
         </View>
 
         <View key="1">
@@ -100,131 +133,228 @@ export default function TabNavigator() {
         </View>
       </PagerView>
 
-      {/* FLOATING TAB BAR */}
-      <View style={[styles.wrapper, { bottom: insets.bottom + 12 }]}>
-        <BlurView intensity={30} tint="light" style={styles.glass}>
-
-          {/* LEFT TAB */}
+      {/* ─────────────────────────────
+          ANIMATED NAVBAR
+      ───────────────────────────── */}
+      <Animated.View
+        pointerEvents={navbarVisible ? 'auto' : 'none'}
+        style={[
+          styles.navWrapper,
+          {
+            bottom:
+              insets.bottom > 0
+                ? insets.bottom + 8
+                : 18,
+            opacity: navbarOpacity,
+            transform: [
+              { translateY: navbarTranslate },
+            ],
+          },
+        ]}
+      >
+        {/* GLASS BAR - SACRED HERITAGE STYLE */}
+        <BlurView intensity={35} tint="light" style={styles.navbar}>
+          
+          {/* HOME */}
           <TabItem
-            tab={TABS[0]}
-            isFocused={index === 0}
+            label={TABS[0].label}
+            activeIcon={TABS[0].activeIcon}
+            inactiveIcon={TABS[0].inactiveIcon}
+            focused={index === 0}
             onPress={() => goToPage(0)}
           />
 
-          {/* CENTER SPACE (for floating button) */}
-          <View style={{ width: 64 }} />
+          <View style={{ width: 80 }} />
 
-          {/* RIGHT TAB */}
+          {/* SETTINGS */}
           <TabItem
-            tab={TABS[1]}
-            isFocused={index === 2}
+            label={TABS[1].label}
+            activeIcon={TABS[1].activeIcon}
+            inactiveIcon={TABS[1].inactiveIcon}
+            focused={index === 2}
             onPress={() => goToPage(2)}
           />
         </BlurView>
 
-        {/* CENTER FLOATING SCAN BUTTON */}
+        {/* CENTER BUTTON - GOLD ACCENT */}
         <TouchableOpacity
-          activeOpacity={0.8}
+          activeOpacity={0.9}
+          style={[
+            styles.scanButton,
+            index === 1 && styles.scanButtonActive
+          ]}
           onPress={() => goToPage(1)}
-          style={styles.scanButton}
         >
-          <Ionicons name="scan" size={24} color="#fff" />
+          <View style={styles.scanGlow} />
+          <Ionicons
+            name={index === 1 ? 'scan' : 'scan-outline'}
+            size={24}
+            color="#fff"
+          />
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </View>
   );
 }
-// ─────────────────────────────────────────────
-// Settings Stack (handles Profile, Settings, and Collection)
-// ─────────────────────────────────────────────
-import SettingsStack from './SettingsStack';
-
 
 // ─────────────────────────────────────────────
-// Tab Item
+// TAB ITEM - WITH GOLD ACCENTS
 // ─────────────────────────────────────────────
-function TabItem({ tab, isFocused, onPress }: any) {
+function TabItem({
+  label,
+  activeIcon,
+  inactiveIcon,
+  focused,
+  onPress,
+}: any) {
   const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(focused ? 1 : 0.55)).current;
+  const goldGlow = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.spring(scale, {
-      toValue: isFocused ? 1.08 : 1,
-      useNativeDriver: true,
-    }).start();
-  }, [isFocused]);
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: focused ? 1.08 : 1,
+        friction: 5,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: focused ? 1 : 0.55,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(goldGlow, {
+        toValue: focused ? 1 : 0,
+        duration: 200,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [focused]);
+
+  const iconColor = goldGlow.interpolate({
+    inputRange: [0, 1],
+    outputRange: [COLORS.textMuted, COLORS.gold],
+  });
 
   return (
-    <TouchableOpacity onPress={onPress} style={styles.tab}>
-      <Animated.View style={{ transform: [{ scale }] }}>
-        {tab.icon(isFocused)}
-      </Animated.View>
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      style={styles.tabButton}
+    >
+      <Animated.View
+        style={{
+          alignItems: 'center',
+          transform: [{ scale }],
+          opacity,
+        }}
+      >
+        {focused && <View style={styles.activeDot} />}
 
-      <Text style={[styles.label, { opacity: isFocused ? 1 : 0.5 }]}>
-        {tab.label}
-      </Text>
+        <Animated.View>
+          <Ionicons
+            name={focused ? activeIcon : inactiveIcon}
+            size={21}
+            color={focused ? COLORS.gold : COLORS.textMuted}
+          />
+        </Animated.View>
+
+        <Animated.Text
+          style={[
+            styles.label,
+            {
+              color: focused ? COLORS.gold : COLORS.textMuted,
+              fontWeight: focused ? '700' : '500',
+            },
+          ]}
+        >
+          {label}
+        </Animated.Text>
+      </Animated.View>
     </TouchableOpacity>
   );
 }
 
 // ─────────────────────────────────────────────
-// Styles (Modern Museum Minimal)
+// STYLES - SACRED HERITAGE THEME
 // ─────────────────────────────────────────────
 const styles = StyleSheet.create({
-  wrapper: {
+  navWrapper: {
     position: 'absolute',
-    left: 20,
-    right: 20,
+    left: 24,
+    right: 24,
     alignItems: 'center',
   },
 
-  glass: {
-    flexDirection: 'row',
+  navbar: {
+    width: '100%',
     height: 56,
     borderRadius: 28,
-    width: '100%',
-    justifyContent: 'space-between',
+    flexDirection: 'row',
     alignItems: 'center',
-
-    backgroundColor: 'rgba(255,255,255,0.25)',
-
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.3)',
-
-    shadowColor: '#000',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderWidth: 1,
+    borderColor: '#EAE5DF',
+    paddingHorizontal: 6,
+    shadowColor: '#1E1B17',
     shadowOpacity: 0.08,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
 
-  tab: {
+  tabButton: {
     flex: 1,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   label: {
-    fontSize: 9,
     marginTop: 2,
-    color: '#111',
+    fontSize: 9,
+    letterSpacing: 0.5,
   },
 
-  // 🔥 CENTER FLOATING BUTTON
+  activeDot: {
+    position: 'absolute',
+    top: -5,
+    width: 4,
+    height: 4,
+    borderRadius: 10,
+    backgroundColor: '#C7A84B', // Gold accent
+  },
+
   scanButton: {
     position: 'absolute',
-    top: -15,
-
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-
-    backgroundColor: '#111',
-
+    top: -18,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#1E1B17', // Deep warm black (ink)
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: '#FFFCF8', // Matches background
+    shadowColor: '#1E1B17',
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
 
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+  scanButtonActive: {
+    backgroundColor: '#C7A84B', // Gold when active
+  },
+
+  scanGlow: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(199,168,75,0.15)',
+    transform: [{ scale: 1.12 }],
   },
 });

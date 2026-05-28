@@ -9,14 +9,39 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.1",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tabs": "^1.1.13",
+    "@supabase/supabase-js": "^2.106.1",
+    "child_process": "^1.0.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "edge-tts-universal": "^1.4.0",
+    "express": "^5.2.1",
+    "framer-motion": "^12.40.0",
+    "gspeak": "^0.0.4",
+    "lucide-react": "^1.17.0",
+    "multer": "^2.1.1",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "react-icons": "^5.6.0",
+    "recharts": "^3.8.1",
+    "tailwindcss-animate": "^1.0.7",
+    "util": "^0.12.5"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/node": "^25.8.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^4.3.0",
     "typescript": "~5.9.2",
     "vite": "^5.4.0"
   }

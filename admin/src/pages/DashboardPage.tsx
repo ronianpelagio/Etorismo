@@ -1,7 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { AdminUser, DashboardDemographics as DashboardDemographicsType, DashboardStats } from '../types';
-import { fetchDashboardStats, fetchUserDemographics } from './dashboardData';
-import DashboardMetricCard from '../components/DashboardMetricCard';
+import {
+  FiUsers,
+  FiBox,
+  FiHeadphones,
+  FiStar,
+  FiTrendingUp,
+  FiShield,
+  FiActivity,
+  FiAlertCircle,
+} from 'react-icons/fi';
+
+import {
+  AdminUser,
+  DashboardDemographics as DashboardDemographicsType,
+  DashboardStats,
+} from '../types';
+
+import {
+  fetchDashboardStats,
+  fetchUserDemographics,
+} from './dashboardData';
+
 import DashboardDemographicsSection from '../components/DashboardDemographics';
 
 const defaultStats: DashboardStats = {
@@ -42,11 +61,21 @@ type DashboardPageProps = {
   profile: AdminUser;
 };
 
-export default function DashboardPage({ profile }: DashboardPageProps) {
+export default function DashboardPage({
+  profile,
+}: DashboardPageProps) {
   const [stats, setStats] = useState(defaultStats);
-  const [demographics, setDemographics] = useState<DashboardDemographicsType>(defaultDemographics);
+
+  const [demographics, setDemographics] =
+    useState<DashboardDemographicsType>(
+      defaultDemographics
+    );
+
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const [error, setError] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     async function loadDashboard() {
@@ -54,14 +83,18 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
       setError(null);
 
       try {
-        const [dashboardStats, userDemographics] = await Promise.all([
-          fetchDashboardStats(),
-          fetchUserDemographics(),
-        ]);
+        const [dashboardStats, userDemographics] =
+          await Promise.all([
+            fetchDashboardStats(),
+            fetchUserDemographics(),
+          ]);
+
         setStats(dashboardStats);
         setDemographics(userDemographics);
       } catch (err: any) {
-        setError(err?.message || 'Unable to load dashboard data.');
+        setError(
+          err?.message || 'Unable to load dashboard.'
+        );
       } finally {
         setLoading(false);
       }
@@ -72,237 +105,496 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
 
   const analyticsCards = [
     {
-      label: 'Total Visitors',
+      label: 'Visitors',
       value: stats.totalVisitors,
-      detail: 'Unique app visitors',
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-      ),
+      icon: <FiUsers size={18} />,
     },
     {
-      label: 'Artifacts Scanned',
+      label: 'Artifacts',
       value: stats.scannedArtifacts,
-      detail: 'QR/NFC interactions',
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" />
-          <rect x="14" y="14" width="7" height="7" rx="1" />
-          <path d="M7 7h.01" />
-          <path d="M17 7h.01" />
-          <path d="M7 17h.01" />
-          <path d="M17 17h.01" />
-        </svg>
-      ),
+      icon: <FiBox size={18} />,
     },
     {
-      label: 'Audio Plays',
+      label: 'Audio',
       value: stats.audioPlays,
-      detail: 'Guided tour plays',
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-        </svg>
-      ),
+      icon: <FiHeadphones size={18} />,
     },
     {
-      label: 'Avg. Rating',
+      label: 'Rating',
       value: stats.averageRating.toFixed(1),
-      detail: 'User satisfaction',
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-        </svg>
-      ),
+      icon: <FiStar size={18} />,
     },
   ];
 
   return (
-    <div className="page-shell">
-      {/* TOP BAR */}
-      <div className="top-bar">
-        <div>
-          <div className="page-eyebrow">— Admin Console</div>
-          <h1 className="page-title">Dashboard</h1>
-          <div className="page-gold-line" />
-          <p className="page-subtitle">
-            Welcome back, {profile?.display_name || profile?.email || 'Admin'}. Here's your ministry overview.
-          </p>
-        </div>
-        <div className="live-indicator">
-          <span className={`live-dot ${stats.liveStatus === 'live' ? 'live-dot-active' : ''}`} />
-          <span className="live-label">{stats.liveStatus === 'live' ? 'Live' : 'Offline'}</span>
-        </div>
-      </div>
+    <>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
 
-      {/* ERROR ALERT */}
-      {error && (
-        <div className="alert-box">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* ANALYTICS CARDS */}
-      <div className="metrics-grid">
-        {analyticsCards.map((card) => (
-          <DashboardMetricCard
-            key={card.label}
-            label={card.label}
-            value={loading ? '' : card.value}
-            detail={card.detail}
-            loading={loading}
-            icon={card.icon}
-          />
-        ))}
-      </div>
-
-      {/* CHARTS + QUICK STATS */}
-      <div className="dashboard-grid">
-        {/* VISITORS TREND */}
-        <div className="panel">
-          <div className="panel-heading">
-            <div>
-              <div className="panel-eyebrow">— Analytics</div>
-              <h3>Visitors <span className="text-muted">Last 7 days</span></h3>
-              <div className="panel-goldline" />
+      <div style={styles.page}>
+        {/* HEADER */}
+        <div style={styles.header}>
+          <div>
+            <div style={styles.eyebrow}>
+              ETORISMO ADMIN
             </div>
+
+            <h1 style={styles.title}>
+              Dashboard
+            </h1>
+
+            <p style={styles.subtitle}>
+              Welcome back{' '}
+              {profile?.email ||
+                'Admin'}
+            </p>
           </div>
-          <div className="panel-body">
-            {loading ? (
-              <div className="chart-skeleton">
-                {Array.from({ length: 7 }).map((_, i) => (
-                  <div key={i} className="chart-skeleton-bar" style={{ height: `${30 + Math.random() * 60}px` }} />
-                ))}
+
+          <div
+            style={{
+              ...styles.liveBadge,
+              background:
+                stats.liveStatus === 'live'
+                  ? '#DCFCE7'
+                  : '#F3F4F6',
+            }}
+          >
+            <div
+              style={{
+                ...styles.liveDot,
+                background:
+                  stats.liveStatus === 'live'
+                    ? '#16A34A'
+                    : '#9CA3AF',
+              }}
+            />
+
+            <span style={styles.liveText}>
+              {stats.liveStatus === 'live'
+                ? 'Live'
+                : 'Offline'}
+            </span>
+          </div>
+        </div>
+
+        {/* ERROR */}
+        {error && (
+          <div style={styles.errorBox}>
+            <FiAlertCircle size={15} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* TOP METRICS */}
+        <div style={styles.metricsGrid}>
+          {analyticsCards.map((card) => (
+            <div
+              key={card.label}
+              style={styles.metricCard}
+            >
+              <div style={styles.metricIcon}>
+                {card.icon}
               </div>
-            ) : stats.visitorsTrend.length === 0 ? (
-              <div className="empty-state">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                </svg>
-                <p>No visitor data available for the last 7 days.</p>
+
+              <div>
+                <div style={styles.metricLabel}>
+                  {card.label}
+                </div>
+
+                <div style={styles.metricValue}>
+                  {loading ? '...' : card.value}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* MAIN GRID */}
+        <div style={styles.mainGrid}>
+          {/* VISITOR TREND */}
+          <div style={styles.panel}>
+            <div style={styles.panelHeader}>
+              <div>
+                <div style={styles.panelEyebrow}>
+                  Analytics
+                </div>
+
+                <h3 style={styles.panelTitle}>
+                  Visitor Trend
+                </h3>
+              </div>
+
+              <FiTrendingUp
+                size={18}
+                color="#16A34A"
+              />
+            </div>
+
+            {loading ? (
+              <div style={styles.chart}>
+                {Array.from({ length: 7 }).map(
+                  (_, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        ...styles.chartBar,
+                        height: `${
+                          40 + Math.random() * 50
+                        }px`,
+                        opacity: 0.4,
+                      }}
+                    />
+                  )
+                )}
               </div>
             ) : (
-              <div className="bar-chart">
+              <div style={styles.chart}>
                 {stats.visitorsTrend.map((point) => (
-                  <div key={point.date} className="bar-chart-item">
+                  <div
+                    key={point.date}
+                    style={styles.chartItem}
+                  >
                     <div
-                      className="bar-chart-fill"
-                      style={{ height: `${Math.max(12, point.count * 12)}px` }}
+                      style={{
+                        ...styles.chartBar,
+                        height: `${Math.max(
+                          16,
+                          point.count * 8
+                        )}px`,
+                      }}
                     />
-                    <span className="bar-chart-label">{point.date.slice(5)}</span>
+
+                    <span style={styles.chartLabel}>
+                      {point.date.slice(5)}
+                    </span>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
 
-        {/* QUICK SUMMARY */}
-        <div className="panel">
-          <div className="panel-heading">
-            <div>
-              <div className="panel-eyebrow">— Overview</div>
-              <h3>Quick Summary</h3>
-              <div className="panel-goldline" />
+          {/* QUICK SUMMARY */}
+          <div style={styles.panel}>
+            <div style={styles.panelHeader}>
+              <div>
+                <div style={styles.panelEyebrow}>
+                  Overview
+                </div>
+
+                <h3 style={styles.panelTitle}>
+                  Summary
+                </h3>
+              </div>
+
+              <FiActivity
+                size={18}
+                color="#16A34A"
+              />
             </div>
-          </div>
-          <div className="panel-body">
-            <div className="summary-list">
-              <div className="summary-item">
-                <div className="summary-item-left">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                  </svg>
-                  <span>Artifacts</span>
-                </div>
-                {loading ? (
-                  <span className="skeleton skeleton-value" />
-                ) : (
-                  <strong>{stats.artifacts}</strong>
-                )}
-              </div>
 
-              <div className="summary-item">
-                <div className="summary-item-left">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                  </svg>
-                  <span>Active Users</span>
-                </div>
-                {loading ? (
-                  <span className="skeleton skeleton-value" />
-                ) : (
-                  <strong>{stats.activeUsers}</strong>
-                )}
-              </div>
+            <div style={styles.summaryList}>
+              {[
+                {
+                  label: 'Artifacts',
+                  value: stats.artifacts,
+                  icon: <FiBox size={14} />,
+                },
+                {
+                  label: 'Users',
+                  value: stats.activeUsers,
+                  icon: <FiUsers size={14} />,
+                },
+                {
+                  label: 'Reviews',
+                  value: stats.reviews,
+                  icon: <FiStar size={14} />,
+                },
+                {
+                  label: 'Blocked',
+                  value: stats.blockedUsers,
+                  icon: <FiShield size={14} />,
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  style={styles.summaryItem}
+                >
+                  <div style={styles.summaryLeft}>
+                    <div style={styles.summaryIcon}>
+                      {item.icon}
+                    </div>
 
-              <div className="summary-item">
-                <div className="summary-item-left">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
-                  <span>Reviews</span>
-                </div>
-                {loading ? (
-                  <span className="skeleton skeleton-value" />
-                ) : (
-                  <strong>{stats.reviews}</strong>
-                )}
-              </div>
+                    <span style={styles.summaryLabel}>
+                      {item.label}
+                    </span>
+                  </div>
 
-              <div className="summary-item">
-                <div className="summary-item-left">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-                    <line x1="12" y1="2" x2="12" y2="12" />
-                  </svg>
-                  <span>Live Status</span>
-                </div>
-                {loading ? (
-                  <span className="skeleton skeleton-value" />
-                ) : (
-                  <strong className={stats.liveStatus === 'live' ? 'text-live' : 'text-offline'}>
-                    {stats.liveStatus === 'live' ? 'Live' : 'Offline'}
+                  <strong style={styles.summaryValue}>
+                    {loading ? '...' : item.value}
                   </strong>
-                )}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* DEMOGRAPHICS */}
-      <div className="panel">
-        <div className="panel-heading">
-          <div>
-            <div className="panel-eyebrow">— Audience Insights</div>
-            <h3>Demographics</h3>
-            <div className="panel-goldline" />
+        {/* DEMOGRAPHICS */}
+        <div style={styles.panel}>
+          <div style={styles.panelHeader}>
+            <div>
+              <div style={styles.panelEyebrow}>
+                Insights
+              </div>
+
+              <h3 style={styles.panelTitle}>
+                Demographics
+              </h3>
+            </div>
+
+            <FiUsers size={18} color="#16A34A" />
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <DashboardDemographicsSection
+              demographics={demographics}
+              loading={loading}
+            />
           </div>
         </div>
-        <div className="panel-body">
-          <p className="page-subtitle" style={{ marginTop: 0, marginBottom: '1.5rem' }}>
-            Gender, age, and location insights from your visitors.
-          </p>
-          <DashboardDemographicsSection demographics={demographics} loading={loading} />
-        </div>
       </div>
-    </div>
+    </>
   );
 }
+
+const styles: Record<string, React.CSSProperties> =
+  {
+    page: {
+      minHeight: '100vh',
+      background: '#F0FDF4',
+      padding: '18px',
+      fontFamily: "'Poppins', sans-serif",
+      overflow: 'hidden',
+    },
+
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+
+    eyebrow: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: '#16A34A',
+      letterSpacing: '1px',
+      marginBottom: 4,
+      textTransform: 'uppercase',
+    },
+
+    title: {
+      margin: 0,
+      fontSize: 24,
+      fontWeight: 700,
+      color: '#1F2937',
+      lineHeight: 1,
+    },
+
+    subtitle: {
+      marginTop: 6,
+      fontSize: 12,
+      color: '#6B7280',
+    },
+
+    liveBadge: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '8px 12px',
+      borderRadius: 999,
+      border: '1px solid #DCFCE7',
+    },
+
+    liveDot: {
+      width: 8,
+      height: 8,
+      borderRadius: '50%',
+    },
+
+    liveText: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: '#15803D',
+    },
+
+    errorBox: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      background: '#FEF2F2',
+      color: '#DC2626',
+      padding: '10px 12px',
+      borderRadius: 12,
+      marginBottom: 14,
+      fontSize: 12,
+      fontWeight: 500,
+    },
+
+    metricsGrid: {
+      display: 'grid',
+      gridTemplateColumns:
+        'repeat(4, minmax(0, 1fr))',
+      gap: 12,
+      marginBottom: 14,
+    },
+
+    metricCard: {
+      background: '#FFFFFF',
+      border: '1px solid #DCFCE7',
+      borderRadius: 18,
+      padding: '14px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      boxShadow:
+        '0 4px 12px rgba(22,163,74,0.05)',
+    },
+
+    metricIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      background: '#DCFCE7',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#16A34A',
+      flexShrink: 0,
+    },
+
+    metricLabel: {
+      fontSize: 11,
+      color: '#6B7280',
+      marginBottom: 2,
+    },
+
+    metricValue: {
+      fontSize: 20,
+      fontWeight: 700,
+      color: '#15803D',
+      lineHeight: 1,
+    },
+
+    mainGrid: {
+      display: 'grid',
+      gridTemplateColumns: '1.5fr 1fr',
+      gap: 14,
+      marginBottom: 14,
+    },
+
+    panel: {
+      background: '#FFFFFF',
+      border: '1px solid #DCFCE7',
+      borderRadius: 20,
+      padding: '16px',
+      boxShadow:
+        '0 4px 14px rgba(22,163,74,0.05)',
+    },
+
+    panelHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 14,
+    },
+
+    panelEyebrow: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: '#16A34A',
+      textTransform: 'uppercase',
+      marginBottom: 2,
+    },
+
+    panelTitle: {
+      margin: 0,
+      fontSize: 16,
+      fontWeight: 600,
+      color: '#1F2937',
+    },
+
+    chart: {
+      height: 150,
+      display: 'flex',
+      alignItems: 'flex-end',
+      gap: 8,
+    },
+
+    chartItem: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 6,
+    },
+
+    chartBar: {
+      width: '100%',
+      borderRadius: 10,
+      background:
+        'linear-gradient(180deg,#22C55E,#15803D)',
+      minHeight: 18,
+    },
+
+    chartLabel: {
+      fontSize: 10,
+      color: '#6B7280',
+    },
+
+    summaryList: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10,
+    },
+
+    summaryItem: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      background: '#F9FFFB',
+      border: '1px solid #DCFCE7',
+      borderRadius: 14,
+      padding: '10px 12px',
+    },
+
+    summaryLeft: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+    },
+
+    summaryIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: 10,
+      background: '#DCFCE7',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#16A34A',
+    },
+
+    summaryLabel: {
+      fontSize: 12,
+      fontWeight: 500,
+      color: '#374151',
+    },
+
+    summaryValue: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: '#15803D',
+    },
+  };

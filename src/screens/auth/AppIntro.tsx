@@ -7,6 +7,7 @@ import {
   Dimensions,
   StatusBar,
   Easing,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,16 +19,20 @@ export default function AppIntro({ navigation }: any) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const logoSlideUp = useRef(new Animated.Value(50)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
   
   // Text reveal animations
   const titleSlide = useRef(new Animated.Value(30)).current;
   const titleFade = useRef(new Animated.Value(0)).current;
+  const subtitleSlide = useRef(new Animated.Value(20)).current;
+  const subtitleFade = useRef(new Animated.Value(0)).current;
   const taglineSlide = useRef(new Animated.Value(20)).current;
   const taglineFade = useRef(new Animated.Value(0)).current;
   
   // Decorative elements
   const lineWidth = useRef(new Animated.Value(0)).current;
   const dotOpacity = useRef(new Animated.Value(0)).current;
+  const goldShimmer = useRef(new Animated.Value(-width)).current;
   
   // Background gradient animation
   const bgOpacity = useRef(new Animated.Value(0)).current;
@@ -54,9 +59,17 @@ export default function AppIntro({ navigation }: any) {
       Animated.timing(logoSlideUp, {
         toValue: 0,
         duration: 700,
-        easing: Easing.out(Easing.back(1.5)),
+        easing: Easing.out(Easing.back(1.2)),
         useNativeDriver: true,
       }),
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 20000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ),
     ]).start();
 
     // Stage 2: Title & Line reveal (400-1200ms)
@@ -64,25 +77,48 @@ export default function AppIntro({ navigation }: any) {
       Animated.parallel([
         Animated.timing(titleFade, {
           toValue: 1,
-          duration: 500,
+          duration: 600,
           useNativeDriver: true,
         }),
         Animated.timing(titleSlide, {
           toValue: 0,
-          duration: 600,
+          duration: 700,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(lineWidth, {
           toValue: 1,
-          duration: 800,
+          duration: 1000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: false,
+        }),
+        Animated.timing(goldShimmer, {
+          toValue: width * 2,
+          duration: 1500,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
         }),
       ]).start();
     }, 400);
 
-    // Stage 3: Tagline & dots reveal (800-1600ms)
+    // Stage 3: Subtitle reveal (800-1600ms)
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(subtitleFade, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(subtitleSlide, {
+          toValue: 0,
+          duration: 600,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 900);
+
+    // Stage 4: Tagline & dots reveal (1200-2000ms)
     setTimeout(() => {
       Animated.parallel([
         Animated.timing(taglineFade, {
@@ -102,54 +138,86 @@ export default function AppIntro({ navigation }: any) {
           useNativeDriver: true,
         }),
       ]).start();
-    }, 900);
+    }, 1300);
 
     // Auto navigate after all animations complete
     const timer = setTimeout(() => {
-      // Fade out animation before navigation
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1.1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
         navigation.replace('SignIn');
       });
-    }, 2800);
+    }, 3200);
 
     return () => clearTimeout(timer);
   }, [navigation]);
 
-  // Animated line width interpolation
   const lineWidthInterpolated = lineWidth.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
 
+  const rotateInterpolate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const shimmerInterpolate = goldShimmer.interpolate({
+    inputRange: [-width, 0, width, width * 2],
+    outputRange: [-width, -width, width, width],
+  });
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A0A0F" />
+      <StatusBar barStyle="light-content" backgroundColor="#F7F4EF" />
 
-      {/* Animated Background Gradient */}
+      {/* Animated Background Gradient - Warm Light Theme */}
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: bgOpacity }]}>
         <LinearGradient
-          colors={['#0A0A0F', '#1A1A2E', '#16213E', '#0A0A0F']}
+          colors={['#FFFCF8', '#FDF8F0', '#F7F4EF', '#FFFCF8']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>
 
-      {/* Floating Particles Effect */}
+      {/* Animated Orbs - Soft Gold */}
+      <AnimatedOrb 
+        size={350} 
+        color="rgba(201, 168, 76, 0.04)" 
+        style={{ top: -150, right: -100, transform: [{ rotate: rotateInterpolate }] }}
+      />
+      <AnimatedOrb 
+        size={300} 
+        color="rgba(201, 168, 76, 0.03)" 
+        style={{ bottom: -100, left: -80, transform: [{ rotate: rotateInterpolate }] }}
+      />
+      <AnimatedOrb 
+        size={250} 
+        color="rgba(201, 168, 76, 0.05)" 
+        style={{ top: '40%', right: -60, transform: [{ rotate: rotateInterpolate }] }}
+      />
+
+      {/* Floating Particles Effect - Gold */}
       <View style={styles.particlesContainer}>
-        {[...Array(20)].map((_, i) => (
-          <Particle key={i} delay={i * 100} />
+        {[...Array(40)].map((_, i) => (
+          <Particle key={i} delay={i * 60} />
         ))}
       </View>
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           
-          {/* Logo Section */}
+          {/* Logo Section with Image */}
           <Animated.View
             style={[
               styles.logoContainer,
@@ -162,11 +230,20 @@ export default function AppIntro({ navigation }: any) {
               },
             ]}
           >
-            {/* Logo with glow effect */}
             <View style={styles.logoWrapper}>
               <View style={styles.logoGlow} />
+              <LinearGradient
+                colors={['rgba(201, 168, 76, 0.15)', 'rgba(201, 168, 76, 0)']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
               <View style={styles.logo}>
-                <Text style={styles.logoSymbol}>⛪</Text>
+                <Image 
+                  source={require('../../assets/icon.png')} 
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
               </View>
             </View>
           </Animated.View>
@@ -181,19 +258,38 @@ export default function AppIntro({ navigation }: any) {
               },
             ]}
           >
-            <Text style={styles.appName}>eTurismo{'\n'}Dolores</Text>
+            <Text style={styles.appName}>
+              <Text style={styles.appNameGold}>Dolores</Text>
+            </Text>
             
-            {/* Animated Divider */}
             <View style={styles.dividerContainer}>
-              <View style={styles.dividerDot} />
-              <Animated.View 
-                style={[
-                  styles.dividerLine,
-                  { width: lineWidthInterpolated },
-                ]} 
-              />
-              <View style={styles.dividerDot} />
+              <View style={styles.dividerDotGold} />
+              <View style={styles.dividerLineContainer}>
+                <View style={styles.dividerLine} />
+                <Animated.View 
+                  style={[
+                    styles.dividerShimmer,
+                    { transform: [{ translateX: shimmerInterpolate }] },
+                  ]} 
+                />
+              </View>
+              <View style={styles.dividerDotGold} />
             </View>
+          </Animated.View>
+
+          {/* Subtitle Section */}
+          <Animated.View
+            style={[
+              styles.subtitleContainer,
+              {
+                opacity: subtitleFade,
+                transform: [{ translateY: subtitleSlide }],
+              },
+            ]}
+          >
+            <Text style={styles.subtitle}>
+              Sacred Heritage Collection
+            </Text>
           </Animated.View>
 
           {/* Tagline Section */}
@@ -207,19 +303,41 @@ export default function AppIntro({ navigation }: any) {
             ]}
           >
             <Text style={styles.tagline}>
-              Discover Sacred Places • Digitalize Museum • Heritage Sites
+              Explore sacred artifacts • Immersive audio guides • Virtual tours
             </Text>
           </Animated.View>
 
-          {/* Bottom Dots Indicator */}
-          <Animated.View style={[styles.dotsContainer, { opacity: dotOpacity }]}>
-            {[0, 1, 2].map((dot) => (
-              <View key={dot} style={styles.dot} />
-            ))}
+          {/* Bottom Loading Indicator */}
+          <Animated.View style={[styles.loadingContainer, { opacity: dotOpacity }]}>
+            <View style={styles.loadingDots}>
+              <View style={[styles.loadingDot, styles.loadingDotActive]} />
+              <View style={styles.loadingDot} />
+              <View style={styles.loadingDot} />
+              <View style={styles.loadingDot} />
+            </View>
+            <Text style={styles.loadingText}>Preparing your sacred journey...</Text>
           </Animated.View>
         </View>
       </SafeAreaView>
     </View>
+  );
+}
+
+// Animated Orb Component
+function AnimatedOrb({ size, color, style }: any) {
+  return (
+    <Animated.View
+      style={[
+        styles.orb,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: color,
+        },
+        style,
+      ]}
+    />
   );
 }
 
@@ -228,6 +346,7 @@ function Particle({ delay }: { delay: number }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const translateX = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -235,26 +354,38 @@ function Particle({ delay }: { delay: number }) {
         Animated.delay(delay),
         Animated.parallel([
           Animated.timing(opacity, {
-            toValue: 0.3,
-            duration: 2000,
+            toValue: 0.6,
+            duration: 2500,
             useNativeDriver: true,
           }),
           Animated.timing(translateY, {
-            toValue: -100,
-            duration: 3000,
+            toValue: -180,
+            duration: 5000,
             useNativeDriver: true,
           }),
           Animated.timing(translateX, {
-            toValue: Math.random() * 40 - 20,
-            duration: 3000,
+            toValue: Math.random() * 100 - 50,
+            duration: 5000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 1.2,
+            duration: 2500,
             useNativeDriver: true,
           }),
         ]),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
+        Animated.parallel([
+          Animated.timing(opacity, {
+            toValue: 0,
+            duration: 2500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 0,
+            duration: 2500,
+            useNativeDriver: true,
+          }),
+        ]),
       ])
     );
 
@@ -268,7 +399,7 @@ function Particle({ delay }: { delay: number }) {
         styles.particle,
         {
           opacity,
-          transform: [{ translateY }, { translateX }],
+          transform: [{ translateY }, { translateX }, { scale }],
           left: `${Math.random() * 100}%`,
           top: `${60 + Math.random() * 40}%`,
         },
@@ -280,7 +411,7 @@ function Particle({ delay }: { delay: number }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
+    backgroundColor: '#F7F4EF',
   },
   safeArea: {
     flex: 1,
@@ -289,7 +420,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 30,
+  },
+  
+  // Orbs
+  orb: {
+    position: 'absolute',
   },
   
   // Particles
@@ -302,13 +438,13 @@ const styles = StyleSheet.create({
     width: 2,
     height: 2,
     borderRadius: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: '#C9A84C',
   },
 
   // Logo
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   logoWrapper: {
     position: 'relative',
@@ -317,88 +453,135 @@ const styles = StyleSheet.create({
   },
   logoGlow: {
     position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    transform: [{ scale: 1.5 }],
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(201, 168, 76, 0.1)',
+    transform: [{ scale: 1.3 }],
   },
   logo: {
-    width: 110,
-    height: 110,
-    borderRadius: 35,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.1,
+    borderColor: 'rgba(201, 168, 76, 0.2)',
+    shadowColor: '#C9A84C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 10,
   },
-  logoSymbol: {
-    fontSize: 52,
+  logoImage: {
+    width: 80,
+    height: 80,
   },
 
   // Title
   titleContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 20,
   },
   appName: {
-    fontSize: 42,
+    fontSize: 52,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#1A1612',
     textAlign: 'center',
-    letterSpacing: 2,
-    lineHeight: 52,
-    fontFamily: 'System',
+    letterSpacing: -1,
+    lineHeight: 60,
+  },
+  appNameGold: {
+    color: '#C9A84C',
+    fontWeight: '800',
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 20,
   },
-  dividerDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  dividerDotGold: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#C9A84C',
+  },
+  dividerLineContainer: {
+    width: 100,
+    height: 2,
+    marginHorizontal: 12,
+    position: 'relative',
+    overflow: 'hidden',
   },
   dividerLine: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginHorizontal: 12,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(201, 168, 76, 0.2)',
+  },
+  dividerShimmer: {
+    position: 'absolute',
+    width: 50,
+    height: '100%',
+    backgroundColor: '#C9A84C',
+    opacity: 0.4,
+  },
+
+  // Subtitle
+  subtitleContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B6459',
+    textAlign: 'center',
+    letterSpacing: 0.8,
   },
 
   // Tagline
   taglineContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 60,
   },
   tagline: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 13,
+    color: '#A89F96',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 20,
     maxWidth: 280,
     fontWeight: '400',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 
-  // Dots
-  dotsContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  // Loading Indicator
+  loadingContainer: {
     position: 'absolute',
     bottom: 60,
+    alignItems: 'center',
   },
-  dot: {
+  loadingDots: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  loadingDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(201, 168, 76, 0.3)',
+  },
+  loadingDotActive: {
+    backgroundColor: '#C9A84C',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  loadingText: {
+    fontSize: 11,
+    color: '#A89F96',
+    letterSpacing: 1,
+    fontWeight: '500',
   },
 });

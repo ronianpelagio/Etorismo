@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Etorismo",
-    "slug": "Etorismo",
+    "name": "eTURISMO",
+    "slug": "eTURISMO",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/icon.jpg",
+    "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./src/assets/icon.jpg",
+      "image": "./src/assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },

@@ -6,27 +6,48 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  ImageBackground,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../services/supabase';
 import { STORAGE_KEYS, getStringArray } from '../../utils/storage';
-import { Loading, Avatar, Button, ListItem } from '../../components';
+import { Loading, Avatar } from '../../components';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ─────────────────────────────────────────────
-// Design Tokens (Consistent with app)
+// Design Tokens
 // ─────────────────────────────────────────────
 const C = {
-  bg:       '#F7F4EF',
-  surface:  '#FFFFFF',
-  ink:      '#1A1612',
-  inkMid:   '#6B6459',
-  inkLight: '#A89F96',
-  gold:     '#C9A84C',
-  goldSoft: '#F5EDD8',
-  border:   '#EAE4DA',
-  danger:   '#C0392B',
+  backgroundLight: '#FFFCF8',
+  surfaceLight: '#FFFFFF',
+  textPrimary: '#1E1B17',
+  textSecondary: '#5C564B',
+  textMuted: '#9B948A',
+  accent: '#C7A84B',
+  accentWarm: '#D4B86A',
+  accentLight: '#FDF8F0',
+  success: '#2ECC71',
+  crimson: '#E74C3C',
+  borderSubtle: '#EAE5DF',
+  divider: '#F0EDE8',
+  hoverLight: '#F5F2ED',
+  shadowLight: '#1E1B17',
+  overlay: 'rgba(0,0,0,0.03)',
+  
+  bg: '#FFFCF8',
+  surface: '#FFFFFF',
+  ink: '#1E1B17',
+  inkMid: '#5C564B',
+  inkLight: '#9B948A',
+  gold: '#C7A84B',
+  goldSoft: '#FDF8F0',
+  border: '#EAE5DF',
+  danger: '#E74C3C',
 };
 
 type UserProfile = {
@@ -40,9 +61,10 @@ type UserProfile = {
 // ─────────────────────────────────────────────
 // StatItem
 // ─────────────────────────────────────────────
-function StatItem({ value, label }: { value: string | number; label: string }) {
+function StatItem({ value, label, icon }: { value: string | number; label: string; icon: string }) {
   return (
     <View style={styles.statItem}>
+      <Ionicons name={icon as any} size={22} color={C.gold} />
       <Text style={styles.statNum}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -79,10 +101,12 @@ function MenuRow({
         {subtitle ? <Text style={styles.menuSub}>{subtitle}</Text> : null}
       </View>
       <View style={styles.menuRight}>
-        {badge !== undefined && (
-          <Text style={styles.menuBadge}>{badge}</Text>
+        {badge !== undefined && badge !== 0 && (
+          <View style={styles.menuBadge}>
+            <Text style={styles.menuBadgeText}>{badge}</Text>
+          </View>
         )}
-        <Text style={styles.chevron}>›</Text>
+        <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
       </View>
     </TouchableOpacity>
   );
@@ -101,9 +125,9 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 // ─────────────────────────────────────────────
-// Main Profile (IMPROVED NAME HANDLING)
+// Main Profile
 // ─────────────────────────────────────────────
-export default function Profile({ navigation, onOpenSettings }: any) {
+export default function Profile({ navigation }: any) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedCount, setSavedCount] = useState(0);
@@ -114,19 +138,16 @@ export default function Profile({ navigation, onOpenSettings }: any) {
     fetchUser();
   }, []);
 
-  // Refresh saved/favorite counts whenever screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       fetchCounts();
     }, [])
   );
 
-  // Auto-refresh counts every 2 seconds while screen is visible
   useEffect(() => {
     const interval = setInterval(() => {
       fetchCounts();
     }, 2000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -152,54 +173,19 @@ export default function Profile({ navigation, onOpenSettings }: any) {
         .eq('id', auth.id)
         .single();
       setUser(data);
+    } catch (error) {
+      console.error('Error fetching user:', error);
     } finally {
       setLoading(false);
     }
   }
 
   const goToSettings = () => {
-    if (onOpenSettings) {
-      onOpenSettings();
-      return;
-    }
-    if (navigation?.navigate) {
-      navigation.navigate('Settings');
-    }
+    navigation?.navigate?.('SettingsRoot');
   };
 
-  const showPlaceholder = (feature: string) => {
-    Alert.alert(feature, 'This screen will be available soon.');
-  };
-
-  // ───────── IMPROVED NAME HANDLING ─────────
   const getFullName = (first: string, last: string) => {
-    const fullName = `${first} ${last}`.trim();
-    return fullName;
-  };
-
-  const getNameDisplay = (first: string, last: string, maxLines: number = 2) => {
-    const fullName = getFullName(first, last);
-    
-    // Split into words for better line breaking
-    const words = fullName.split(' ');
-    
-    // Strategy 1: Try full name first (short names ≤3 words)
-    if (words.length <= 3) {
-      return {
-        displayName: fullName,
-        style: styles.fullName,
-        numberOfLines: maxLines,
-      };
-    }
-    
-    // Strategy 2: First name on top, last name below (longer names)
-    return {
-      displayName: first,
-      style: styles.firstNameLarge,
-      subName: last,
-      subStyle: styles.lastNameLarge,
-      numberOfLines: maxLines,
-    };
+    return `${first} ${last}`.trim();
   };
 
   if (loading) {
@@ -213,114 +199,97 @@ export default function Profile({ navigation, onOpenSettings }: any) {
   if (!user) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={{ color: C.inkMid }}>No user found</Text>
+        <Text style={{ color: C.textSecondary }}>No user found</Text>
       </SafeAreaView>
     );
   }
 
   const initials = `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
-  const nameDisplay = getNameDisplay(user.first_name,user.last_name);
+  const fullName = getFullName(user.first_name, user.last_name);
+  const isLongName = fullName.split(' ').length > 3 || fullName.length > 20;
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
         contentContainerStyle={{
-          paddingBottom: insets.bottom + 120,
+          paddingBottom: insets.bottom + 40,
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ───────── HERO ───────── */}
-        <View style={styles.hero}>
-          {/* Member label */}
-          <Text style={styles.heroTopLabel}>Member Profile</Text>
-
-          {/* Avatar + meta row */}
-          <View style={styles.avatarRow}>
-            <View style={styles.avatarCircle}>
-              {user.profile_picture ? (
-                <Avatar
-                  source={{ uri: user.profile_picture }}
-                  size="large"
-                />
-              ) : (
-                <Text style={styles.avatarInitials}>{initials}</Text>
-              )}
-            </View>
-            <View style={styles.avatarMeta}>
-              <View style={styles.memberBadge}>
-                <View style={styles.memberDot} />
-                <Text style={styles.memberBadgeText}>Patron</Text>
+        {/* ─── Hero with Background Image ─── */}
+        <ImageBackground
+          source={require('../../assets/Signin.jpg')}
+          style={styles.heroBg}
+          imageStyle={styles.heroBgImage}
+        >
+          <LinearGradient
+            colors={[
+              'rgba(255, 252, 248, 0.92)',
+              'rgba(255, 252, 248, 0.85)',
+              'rgba(255, 252, 248, 0.78)',
+            ]}
+            style={StyleSheet.absoluteFillObject}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
+          
+          <View style={styles.heroContent}>
+            {/* Avatar Section */}
+            <View style={styles.avatarSection}>
+              <View style={styles.avatarCircle}>
+                {user.profile_picture ? (
+                  <Avatar source={{ uri: user.profile_picture }} size="large" />
+                ) : (
+                  <Text style={styles.avatarInitials}>{initials}</Text>
+                )}
               </View>
-              <Text style={styles.emailLabel}>{user.email}</Text>
+            </View>
+
+            {/* Name Section */}
+            <View style={styles.nameSection}>
+              {isLongName ? (
+                <>
+                  <Text style={styles.firstNameLarge} numberOfLines={1} adjustsFontSizeToFit>
+                    {user.first_name}
+                  </Text>
+                  <Text style={styles.lastNameLarge} numberOfLines={1} adjustsFontSizeToFit>
+                    {user.last_name}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.fullName} numberOfLines={2} adjustsFontSizeToFit>
+                  {fullName}
+                </Text>
+              )}
+              <Text style={styles.emailText}>{user.email}</Text>
             </View>
           </View>
+        </ImageBackground>
 
-          {/* ───────── IMPROVED NAME BLOCK ───────── */}
-          <View style={styles.nameBlock}>
-            {nameDisplay.style === styles.fullName ? (
-              // Single full name display (short names)
-              <Text 
-                style={nameDisplay.style} 
-                numberOfLines={nameDisplay.numberOfLines}
-                adjustsFontSizeToFit={true}
-                minimumFontScale={0.6}
-              >
-                {nameDisplay.displayName}
-              </Text>
-            ) : (
-              // Stacked first/last name display (long names)
-              <>
-                <Text 
-                  style={nameDisplay.style}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit={true}
-                  minimumFontScale={0.65}
-                >
-                  {nameDisplay.displayName}
-                </Text>
-                <Text 
-                  style={nameDisplay.subStyle}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit={true}
-                  minimumFontScale={0.65}
-                >
-                  {nameDisplay.subName}
-                </Text>
-              </>
-            )}
-          </View>
-        </View>
-
-        {/* ───────── DIVIDER ───────── */}
-        <View style={styles.divider} />
-
-        {/* ───────── STATS STRIP ───────── */}
+        {/* Stats Strip */}
         <View style={styles.statsStrip}>
-          <StatItem value={savedCount} label="Saved" />
+          <StatItem value={savedCount} label="Saved" icon="bookmark-outline" />
           <View style={styles.statDivider} />
-          <StatItem value={favoriteCount} label="Favorites" />
+          <StatItem value={favoriteCount} label="Favorites" icon="heart-outline" />
           <View style={styles.statDivider} />
-          <StatItem value={3} label="Tours" />
+          <StatItem value="3" label="Tours" icon="compass-outline" />
         </View>
 
-        {/* ───────── DIVIDER ───────── */}
-        <View style={styles.divider} />
-
-        {/* ───────── MY COLLECTION ───────── */}
+        {/* My Collection Section */}
         <View style={styles.sectionWrap}>
           <SectionHeader title="MY COLLECTION" />
           <View style={styles.menuCard}>
             <MenuRow
-              icon={<Text style={styles.menuIconText}>⊞</Text>}
+              icon={<Ionicons name="bookmark-outline" size={20} color={C.gold} />}
               title="Saved Artifacts"
-              subtitle={`${savedCount} artifact${savedCount !== 1 ? 's' : ''}`}
+              subtitle={`${savedCount} artifact${savedCount !== 1 ? 's' : ''} in your collection`}
               badge={savedCount}
               onPress={() => navigation?.navigate?.('SavedArtifacts')}
             />
             <MenuRow
-              icon={<Text style={styles.menuIconText}>♡</Text>}
+              icon={<Ionicons name="heart-outline" size={20} color={C.gold} />}
               title="Favorite Pieces"
-              subtitle={`${favoriteCount} favorite${favoriteCount !== 1 ? 's' : ''}`}
+              subtitle={`${favoriteCount} favorite${favoriteCount !== 1 ? 's' : ''} you've liked`}
               badge={favoriteCount}
               onPress={() => navigation?.navigate?.('FavoriteArtifacts')}
               isLast
@@ -328,186 +297,176 @@ export default function Profile({ navigation, onOpenSettings }: any) {
           </View>
         </View>
 
-        {/* ───────── ACCOUNT ───────── */}
-        <View style={[styles.sectionWrap, { marginTop: 20 }]}>
-          <SectionHeader title="ACCOUNT" />
-          <View style={styles.menuCard}>
-            <MenuRow
-              icon={<Text style={styles.menuIconText}>△</Text>}
-              title="Edit Profile"
-              subtitle={user.email}
-              onPress={() => {
-                navigation?.navigate?.('Settings', { screen: 'PersonalInfo' });
-              }}
-              isLast
-            />
-          </View>
-        </View>
-
-        {/* ───────── SETTINGS BUTTON ───────── */}
+        {/* Settings Button */}
         <TouchableOpacity style={styles.settingsBtn} onPress={goToSettings} activeOpacity={0.7}>
-          <Text style={styles.settingsBtnLabel}>SETTINGS</Text>
-          <Text style={styles.settingsBtnArrow}>→</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="settings-outline" size={18} color={C.textPrimary} />
+            <Text style={styles.settingsBtnLabel}>Settings & Preferences</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={C.textMuted} />
         </TouchableOpacity>
+
+        {/* Version Info */}
+        <Text style={styles.versionText}>Version 2.0.0 • Sacred Heritage</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 // ─────────────────────────────────────────────
-// COMPLETE STYLES
+// STYLES
 // ─────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: C.bg,
+    backgroundColor: C.backgroundLight,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: C.bg,
+    backgroundColor: C.backgroundLight,
   },
 
-  // ── Hero ──
-  hero: {
-    paddingHorizontal: 28,
-    paddingTop: 28,
+  // ── Hero with Background ──
+  heroBg: {
+    width: '100%',
     paddingBottom: 32,
   },
-  heroTopLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 3.2,
-    color: C.gold,
-    textTransform: 'uppercase',
-    marginBottom: 20,
+  heroBgImage: {
+    opacity: 0.15,
+    resizeMode: 'cover',
   },
-  avatarRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 20,
+  heroContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  avatarSection: {
+    alignItems: 'center',
     marginBottom: 20,
   },
   avatarCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: C.gold,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 3,
+    borderColor: C.surfaceLight,
+    shadowColor: C.shadowLight,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarInitials: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: '600',
-    color: C.surface,
+    color: C.surfaceLight,
     letterSpacing: 1,
-  },
-  avatarMeta: {
-    paddingBottom: 6,
   },
   memberBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    borderWidth: 0.5,
-    borderColor: C.gold,
-    borderRadius: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
+    gap: 6,
+    backgroundColor: C.goldSoft,
+    borderWidth: 1,
+    borderColor: C.accentWarm,
+    borderRadius: 50,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
   memberDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: C.gold,
   },
   memberBadgeText: {
     fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 2.5,
+    fontWeight: '700',
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
     color: C.gold,
   },
-  emailLabel: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: C.inkMid,
-  },
-
-  // ───────── UPDATED NAME STYLES ─────────
-  nameBlock: {
-    borderTopWidth: 0.5,
-    borderTopColor: C.border,
-    paddingTop: 20,
-    minHeight: 96,
+  nameSection: {
+    alignItems: 'center',
+    gap: 6,
   },
   fullName: {
-    fontSize: 46,
+    fontSize: 32,
     fontWeight: '700',
-    color: C.ink,
-    lineHeight: 48,
+    color: C.textPrimary,
+    textAlign: 'center',
     letterSpacing: -0.5,
-    includeFontPadding: false,
   },
   firstNameLarge: {
-    fontSize: 44,
+    fontSize: 28,
     fontWeight: '700',
-    color: C.ink,
-    lineHeight: 44,
-    letterSpacing: -0.4,
-    includeFontPadding: false,
-    marginBottom: 2,
+    color: C.textPrimary,
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
   lastNameLarge: {
-    fontSize: 44,
+    fontSize: 28,
     fontWeight: '600',
     color: C.gold,
-    lineHeight: 44,
-    letterSpacing: -0.4,
-    includeFontPadding: false,
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
-  divider: {
-    height: 0.5,
-    backgroundColor: C.border,
+  emailText: {
+    fontSize: 13,
+    color: C.textMuted,
+    marginTop: 6,
   },
 
-  // ── Stats ──
+  // ── Stats Strip ──
   statsStrip: {
     flexDirection: 'row',
     paddingVertical: 24,
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
+    backgroundColor: C.surfaceLight,
+    marginHorizontal: 20,
+    marginTop: -20,
+    borderRadius: 20,
+    shadowColor: C.shadowLight,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
+    gap: 6,
   },
   statNum: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: C.ink,
-    lineHeight: 36,
-    marginBottom: 4,
+    fontSize: 28,
+    fontWeight: '700',
+    color: C.textPrimary,
+    lineHeight: 32,
   },
   statLabel: {
     fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 2,
+    fontWeight: '600',
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
-    color: C.inkMid,
+    color: C.textMuted,
   },
   statDivider: {
-    width: 0.5,
+    width: 1,
     backgroundColor: C.border,
-    marginVertical: 4,
+    marginVertical: 8,
   },
 
   // ── Section ──
   sectionWrap: {
-    paddingHorizontal: 28,
-    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingTop: 28,
   },
   sectionHead: {
     flexDirection: 'row',
@@ -518,95 +477,94 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 3,
+    letterSpacing: 2.5,
     textTransform: 'uppercase',
     color: C.gold,
   },
   sectionLine: {
     flex: 1,
-    height: 0.5,
+    height: 1,
     backgroundColor: C.border,
   },
   menuCard: {
-    backgroundColor: C.surface,
-    borderRadius: 18,
-    borderWidth: 0.5,
+    backgroundColor: C.surfaceLight,
+    borderRadius: 16,
+    borderWidth: 1,
     borderColor: C.border,
     overflow: 'hidden',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     gap: 14,
   },
   menuItemBorder: {
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
   menuIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(201,168,76,0.1)',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: C.goldSoft,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  menuIconText: {
-    fontSize: 17,
-    color: C.gold,
   },
   menuText: {
     flex: 1,
   },
   menuTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: C.ink,
-    marginBottom: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: C.textPrimary,
+    marginBottom: 2,
   },
   menuSub: {
     fontSize: 12,
     fontWeight: '400',
-    color: C.inkMid,
+    color: C.textMuted,
   },
   menuRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   menuBadge: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: C.gold,
+    backgroundColor: C.gold,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
-  chevron: {
-    fontSize: 20,
-    color: C.inkLight,
-    lineHeight: 22,
+  menuBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.surfaceLight,
   },
   settingsBtn: {
-    marginHorizontal: 28,
-    marginTop: 24,
-    borderWidth: 0.5,
-    borderColor: C.ink,
-    borderRadius: 12,
-    paddingVertical: 14,
+    marginHorizontal: 20,
+    marginTop: 28,
+    backgroundColor: C.surfaceLight,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 14,
+    paddingVertical: 16,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   settingsBtnLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: C.ink,
+    color: C.textPrimary,
   },
-  settingsBtnArrow: {
-    fontSize: 18,
-    color: C.inkMid,
+  versionText: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: C.textMuted,
+    marginTop: 24,
+    marginBottom: 16,
   },
 });

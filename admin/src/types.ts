@@ -7,16 +7,17 @@ export type AdminUser = {
   created_at?: string | null;
 };
 
+// Update your Artifact type in your types file
 export type Artifact = {
   id: string;
   name: string;
   category: string;
   qr_code?: string | null;
+  qr_value?: string | null;
   description?: string | null;
   image_url?: string | null;
   created_at?: string | null;
 };
-
 export type Announcement = {
   id: string;
   title: string;

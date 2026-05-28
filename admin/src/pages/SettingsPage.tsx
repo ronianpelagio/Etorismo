@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function SettingsPage() {
   const [form, setForm] = useState({
@@ -8,7 +8,25 @@ export default function SettingsPage() {
   const [showModal, setShowModal] = useState(false);
   const [saved, setSaved]         = useState(false);
 
+  // Load settings from localStorage on initial render
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem('etorismoAdminSettings');
+      if (savedSettings) {
+        setForm(JSON.parse(savedSettings));
+      }
+    } catch (error) {
+      console.error('Failed to load settings from localStorage:', error);
+    }
+  }, []);
+
   const handleSave = () => {
+    // Save settings to localStorage
+    try {
+      localStorage.setItem('etorismoAdminSettings', JSON.stringify(form));
+    } catch (error) {
+      console.error('Failed to save settings to localStorage:', error);
+    }
     setShowModal(false); setSaved(true);
     setTimeout(() => setSaved(false), 2600);
   };

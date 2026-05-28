@@ -15,18 +15,34 @@ import { STORAGE_KEYS, toggleInStringArray, getStringArray } from '../../utils/s
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// ─── Design tokens ──────────────────────────────────────────────────────────────
+// ─── SACRED HERITAGE THEME TOKENS ──────────────────────────────────────────────
 const C = {
-  bg:       '#F7F4EF',
+  // Warm, creamy background (from HomeScreen)
+  bg:       '#FFFCF8',  // Creamy off-white
   surface:  '#FFFFFF',
-  ink:      '#1A1612',
-  inkMid:   '#6B6459',
-  inkLight: '#A89F96',
-  gold:     '#C9A84C',
-  goldSoft: '#F5EDD8',
-  border:   '#EAE4DA',
-  error:    '#C0392B',
-  success:  '#2ECC71',
+  
+  // Text colors (warm neutrals)
+  ink:      '#1E1B17',  // Deep warm black
+  inkMid:   '#5C564B',  // Warm taupe
+  inkLight: '#9B948A',  // Soft warm gray
+  
+  // Brand accent - Gold
+  gold:     '#C7A84B',
+  goldWarm: '#D4B86A',
+  goldSoft: '#FDF8F0',
+  goldLight: 'rgba(199,168,75,0.1)',
+  
+  // Borders and dividers
+  border:   '#EAE5DF',
+  borderGold: 'rgba(199,168,75,0.3)',
+  
+  // Status colors
+  error:    '#E74C3C',  // Crimson (from HomeScreen)
+  success:  '#2ECC71',  // Teal (from HomeScreen)
+  
+  // Overlays
+  overlay:  'rgba(30,27,23,0.75)', // Ink color as overlay
+  vignette: 'rgba(30,27,23,0.35)',
 };
 
 type Artifact = {
@@ -34,7 +50,7 @@ type Artifact = {
   name: string;
   category: string;
   qr_code: string;
-  scanned_artifacts: string[]; // Array of QR values of artifacts that have been scanned together with this one
+  scanned_artifacts: string[];
   qr_value: string;
   created_at: string;
   description?: string;
@@ -51,14 +67,6 @@ type Artifact = {
   image_url?: string;
 };
 
-type AudioGuide = {
-  id: string;
-  artifact_id: string;
-  language: string;
-  audio_url: string;
-  created_at: string;
-};
-
 const CATEGORY_IMAGES: Record<string, string> = {
   'Vestments':          'https://images.unsplash.com/photo-1582552938356-8b6b14c0e1ee?w=600',
   'Sacred Vessels':     'https://images.unsplash.com/photo-1602351447937-7457d2e0ffc3?w=600',
@@ -68,7 +76,7 @@ const CATEGORY_IMAGES: Record<string, string> = {
   'Sacramentals':       'https://images.unsplash.com/photo-1580137189272-c9379f8864fd?w=600',
 };
 
-// ─── Corner Frame pieces (Smaller) ────────────────────────────────────────────────────────
+// ─── Corner Frame (with gold accent) ────────────────────────────────────────────
 function ScanFrame({ pulse }: { pulse: Animated.Value }) {
   const corners = [
     { top: 0,    left: 0,    borderTopWidth: 2.5,    borderLeftWidth: 2.5  },
@@ -108,7 +116,7 @@ const sf = StyleSheet.create({
   },
 });
 
-// ─── Artifact Detail Modal ─────────────────────────────────────────────────────
+// ─── Artifact Detail Modal (Sacred Heritage Styled) ─────────────────────────────
 function ArtifactModal({
   artifact, onClose,
 }: { artifact: Artifact | null; onClose: () => void }) {
@@ -184,16 +192,16 @@ function ArtifactModal({
     const art = artifact as any;
     switch (lang) {
       case 'fil':
-        return art?.description_fil || art?.description_en || `Sacred artifact from Heritage Collection.`;
+        return art?.description_fil || art?.description_en || `Sacred artifact from the Sacred Heritage Collection.`;
       case 'ja':
-        return art?.description_ja || art?.description_en || `神聖な遺産コレクション。`;
+        return art?.description_ja || art?.description_en || `神聖な遺産コレクションの聖遺物。`;
       case 'es':
-        return art?.description_es || art?.description_en || `Artefacto sagrado de la Colección de Patrimonio.`;
+        return art?.description_es || art?.description_en || `Artefacto sagrado de la Colección de Patrimonio Sagrado.`;
       case 'ko':
-        return art?.description_ko || art?.description_en || `신성한 유산 컬렉션.`;
+        return art?.description_ko || art?.description_en || `신성한 유산 컬렉션의 성물.`;
       case 'en':
       default:
-        return art?.description_en || art?.description || `This artifact is part of the Sacred Heritage Collection, preserved as a testament to centuries of liturgical tradition and craftsmanship.`;
+        return art?.description_en || art?.description || `This sacred artifact is part of the Sacred Heritage Collection, preserved as a testament to centuries of liturgical tradition and craftsmanship.`;
     }
   }
 
@@ -271,7 +279,7 @@ function ArtifactModal({
     >
       <View style={ams.overlay}>
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={handleClose} activeOpacity={1}>
-          <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim, backgroundColor: 'rgba(26,22,18,0.75)' }]} />
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim, backgroundColor: C.overlay }]} />
         </TouchableOpacity>
 
         <Animated.View style={[
@@ -281,10 +289,10 @@ function ArtifactModal({
             transform: [{ scale: scaleAnim }],
           },
         ]}>
-          {/* Close button */}
+          {/* Close button - Gold ring style */}
           <TouchableOpacity style={ams.closeBtn} onPress={handleClose} activeOpacity={0.7}>
             <View style={ams.closeBtnCircle}>
-              <Text style={ams.closeBtnX}>✕</Text>
+              <Ionicons name="close" size={16} color="#FFF" />
             </View>
           </TouchableOpacity>
 
@@ -306,7 +314,7 @@ function ArtifactModal({
               </Text>
 
               <View style={ams.section}>
-                <Text style={ams.sectionLabel}>About this artifact</Text>
+                <Text style={ams.sectionLabel}>ABOUT THIS PIECE</Text>
                 <Text style={ams.description}>
                   {getDescriptionByLanguage(selectedLanguage)}
                 </Text>
@@ -315,9 +323,9 @@ function ArtifactModal({
               {/* Language Selection & Audio Controls */}
               {availableAudio.length > 0 && (
                 <View style={ams.section}>
-                  <Text style={ams.sectionLabel}>Audio Guide</Text>
+                  <Text style={ams.sectionLabel}>AUDIO GUIDE</Text>
                   
-                  {/* Language Tabs */}
+                  {/* Language Tabs - Gold themed */}
                   <View style={ams.audioLangTabs}>
                     {availableAudio.map(lang => (
                       <TouchableOpacity
@@ -332,22 +340,23 @@ function ArtifactModal({
                         }}
                         activeOpacity={0.7}
                       >
+                        <Text style={ams.audioLangTabFlag}>{lang.flag}</Text>
                         <Text style={[
                           ams.audioLangTabText,
                           selectedLanguage === lang.code && ams.audioLangTabTextActive
                         ]}>
-                          {lang.flag} {lang.label}
+                          {lang.label}
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
-                  {/* Audio Player */}
+                  {/* Audio Player - Gold accent */}
                   {(() => {
                     const langObj = AUDIO_LANGUAGES.find(l => l.code === selectedLanguage);
                     return langObj && art[langObj.dbKey as keyof typeof art] ? (
                       <TouchableOpacity
-                        style={ams.audioPlayButton}
+                        style={[ams.audioPlayButton, playingLang === selectedLanguage && ams.audioPlayButtonActive]}
                         onPress={() => {
                           const lang = AUDIO_LANGUAGES.find(l => l.code === selectedLanguage);
                           if (lang) {
@@ -359,16 +368,28 @@ function ArtifactModal({
                             }
                           }
                         }}
-                        activeOpacity={0.7}
+                        activeOpacity={0.8}
                       >
+                        <View style={[ams.audioPlayIcon, playingLang === selectedLanguage && ams.audioPlayIconActive]}>
+                          <Ionicons
+                            name={playingLang === selectedLanguage ? 'pause' : 'play'}
+                            size={20}
+                            color={playingLang === selectedLanguage ? C.ink : C.gold}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={ams.audioPlayLabel}>
+                            {playingLang === selectedLanguage ? 'Now playing' : 'Tap to listen'}
+                          </Text>
+                          <Text style={ams.audioPlaySub}>
+                            {langObj.flag} {langObj.label} narration
+                          </Text>
+                        </View>
                         <Ionicons
-                          name={playingLang === selectedLanguage ? 'pause-circle' : 'play-circle'}
-                          size={24}
-                          color={C.gold}
+                          name={playingLang === selectedLanguage ? 'volume-high' : 'volume-medium-outline'}
+                          size={20}
+                          color={playingLang === selectedLanguage ? C.gold : C.inkLight}
                         />
-                        <Text style={ams.audioPlayText}>
-                          {playingLang === selectedLanguage ? 'Pause' : 'Play'} Audio
-                        </Text>
                       </TouchableOpacity>
                     ) : null;
                   })()}
@@ -378,31 +399,31 @@ function ArtifactModal({
               {/* Save & Favorite Buttons */}
               <View style={ams.actionButtonsRow}>
                 <TouchableOpacity 
-                  style={[ams.actionBtn, isSaved && ams.actionBtnActive]} 
+                  style={[ams.actionBtn, isSaved && ams.actionBtnGold]} 
                   onPress={toggleSave}
                   activeOpacity={0.7}
                 >
                   <Ionicons 
                     name={isSaved ? 'bookmark' : 'bookmark-outline'} 
-                    size={20} 
+                    size={18} 
                     color={isSaved ? C.gold : C.inkMid}
                   />
-                  <Text style={[ams.actionBtnText, isSaved && ams.actionBtnTextActive]}>
+                  <Text style={[ams.actionBtnText, isSaved && ams.actionBtnTextGold]}>
                     {isSaved ? 'Saved' : 'Save'}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                  style={[ams.actionBtn, isFavorited && ams.actionBtnActive]} 
+                  style={[ams.actionBtn, isFavorited && ams.actionBtnCrimson]} 
                   onPress={toggleFavorite}
                   activeOpacity={0.7}
                 >
                   <Ionicons 
                     name={isFavorited ? 'heart' : 'heart-outline'} 
-                    size={20} 
+                    size={18} 
                     color={isFavorited ? C.error : C.inkMid}
                   />
-                  <Text style={[ams.actionBtnText, isFavorited && ams.actionBtnTextActive]}>
+                  <Text style={[ams.actionBtnText, isFavorited && { color: '#fff' }]}>
                     {isFavorited ? 'Liked' : 'Like'}
                   </Text>
                 </TouchableOpacity>
@@ -429,15 +450,15 @@ const ams = StyleSheet.create({
   modal: {
     width: '100%',
     maxWidth: 420,
-    maxHeight: SCREEN_HEIGHT * 0.8,
+    maxHeight: SCREEN_HEIGHT * 0.85,
     backgroundColor: C.surface,
-    borderRadius: 24,
+    borderRadius: 28,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
+    shadowColor: C.ink,
+    shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 24,
-    elevation: 16,
+    shadowRadius: 28,
+    elevation: 20,
   },
   closeBtn: {
     position: 'absolute',
@@ -449,18 +470,15 @@ const ams = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(26,22,18,0.6)',
+    backgroundColor: 'rgba(30,27,23,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  closeBtnX: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
   imageSection: {
     width: '100%',
-    height: 240,
+    height: 280,
     position: 'relative',
   },
   image: {
@@ -471,14 +489,16 @@ const ams = StyleSheet.create({
     position: 'absolute',
     bottom: 16,
     left: 20,
-    backgroundColor: 'rgba(26,22,18,0.8)',
+    backgroundColor: 'rgba(30,27,23,0.85)',
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
   categoryPillText: {
-    fontSize: 10,
-    letterSpacing: 2,
+    fontSize: 9,
+    letterSpacing: 2.5,
     color: C.gold,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -494,10 +514,10 @@ const ams = StyleSheet.create({
     marginBottom: 16,
   },
   name: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
     color: C.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
     marginBottom: 6,
   },
   period: {
@@ -507,13 +527,13 @@ const ams = StyleSheet.create({
     marginBottom: 24,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
     color: C.gold,
-    letterSpacing: 2.5,
+    letterSpacing: 3,
     textTransform: 'uppercase',
     marginBottom: 10,
   },
@@ -522,134 +542,80 @@ const ams = StyleSheet.create({
     color: C.inkMid,
     lineHeight: 24,
   },
-  // ─── Updated Grid Section (Audio + Language) ───
-  audioGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  metaCard: {
-    flex: 1,
-    backgroundColor: C.bg,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-    padding: 16,
-  },
-  audioCard: {
-    flex: 2,
-  },
-  languageCard: {
-    flex: 1,
-  },
-  audioHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  audioLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: C.gold,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  audioLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  audioLoadingText: {
-    fontSize: 13,
-    color: C.inkMid,
-    fontWeight: '500',
-  },
-  audioPlayButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-  },
-  audioPlayText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: C.gold,
-  },
-  noAudio: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    opacity: 0.6,
-  },
-  noAudioText: {
-    fontSize: 13,
-    color: C.inkMid,
-  },
-  metaLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: C.gold,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  languageList: {
-    gap: 8,
-  },
-  languageButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: 'rgba(201,168,76,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.3)',
-  },
-  languageButtonActive: {
-    backgroundColor: C.goldSoft,
-    borderColor: C.gold,
-  },
-  languageButtonText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.inkMid,
-    textAlign: 'center',
-  },
-  languageButtonTextActive: {
-    color: C.ink,
-  },
-  // ─── Audio Language Tabs (New) ───
   audioLangTabs: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 16,
     flexWrap: 'wrap',
   },
   audioLangTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(201,168,76,0.1)',
+    borderRadius: 50,
+    backgroundColor: C.goldLight,
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.3)',
+    borderColor: C.borderGold,
   },
   audioLangTabActive: {
     backgroundColor: C.goldSoft,
     borderColor: C.gold,
   },
-  audioLangTabText: {
+  audioLangTabFlag: {
     fontSize: 12,
+  },
+  audioLangTabText: {
+    fontSize: 11,
     fontWeight: '700',
     color: C.inkMid,
-    textAlign: 'center',
   },
   audioLangTabTextActive: {
+    color: C.gold,
+  },
+  audioPlayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 16,
+    padding: 14,
+  },
+  audioPlayButtonActive: {
+    borderColor: C.borderGold,
+    backgroundColor: C.goldSoft,
+  },
+  audioPlayIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: C.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  audioPlayIconActive: {
+    backgroundColor: C.gold,
+    borderColor: C.gold,
+  },
+  audioPlayLabel: {
+    fontSize: 14,
+    fontWeight: '700',
     color: C.ink,
+    marginBottom: 2,
+  },
+  audioPlaySub: {
+    fontSize: 11,
+    color: C.inkLight,
   },
   actionButtonsRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   actionBtn: {
     flex: 1,
@@ -658,30 +624,34 @@ const ams = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 50,
     borderWidth: 1,
     borderColor: C.border,
-    backgroundColor: C.bg,
+    backgroundColor: C.surface,
   },
-  actionBtnActive: {
+  actionBtnGold: {
     borderColor: C.gold,
     backgroundColor: C.goldSoft,
+  },
+  actionBtnCrimson: {
+    borderColor: C.error,
+    backgroundColor: C.error,
   },
   actionBtnText: {
     fontSize: 13,
     fontWeight: '600',
     color: C.inkMid,
   },
-  actionBtnTextActive: {
+  actionBtnTextGold: {
     color: C.gold,
   },
   doneBtn: {
     backgroundColor: C.ink,
-    borderRadius: 14,
+    borderRadius: 50,
     paddingVertical: 16,
     alignItems: 'center',
     shadowColor: C.ink,
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 10,
     elevation: 4,
@@ -694,7 +664,7 @@ const ams = StyleSheet.create({
   },
 });
 
-// ─── Main Screen (unchanged) ──────────────────────────────────────────────────
+// ─── Main QRScanner Component ──────────────────────────────────────────────────
 export default function QRScanner() {
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(true);
@@ -720,9 +690,6 @@ export default function QRScanner() {
     };
     loadScannedArtifacts();
   }, []);
-
-  // ... rest of the main screen code remains exactly the same ...
-  // (Pulse animation, handleBarCodeScanned, reset, startScanning, permission states, JSX all unchanged)
 
   // Pulse animation loop
   useEffect(() => {
@@ -800,10 +767,10 @@ export default function QRScanner() {
   if (!permission.granted) return (
     <SafeAreaView style={s.centered}>
       <View style={s.permIconWrap}>
-        <Text style={s.permIcon}>◉</Text>
+        <Ionicons name="camera-outline" size={48} color={C.gold} />
       </View>
       <Text style={s.permTitle}>Camera Access Needed</Text>
-      <Text style={s.permSub}>Allow camera access to scan artifact QR codes</Text>
+      <Text style={s.permSub}>Allow camera access to scan artifact QR codes and discover their sacred history</Text>
       <TouchableOpacity style={s.permBtn} onPress={requestPermission} activeOpacity={0.85}>
         <Text style={s.permBtnTxt}>Grant Permission</Text>
       </TouchableOpacity>
@@ -817,16 +784,34 @@ export default function QRScanner() {
 
   return (
     <View style={s.container}>
-      {/* ── Header (Compact) ── */}
+      {/* ── Header with Collection Icon ── */}
       <SafeAreaView edges={['top']} style={s.headerSafe}>
         <View style={s.header}>
-          <Text style={s.eyebrow}>— Sacred Heritage</Text>
-          <Text style={s.title}>QR Scanner</Text>
-          <View style={s.goldLine} />
+          <View style={s.headerLeft}>
+            <Text style={s.eyebrow}>✦ SACRED HERITAGE</Text>
+            <Text style={s.title}>QR Scanner</Text>
+            <View style={s.goldLine} />
+          </View>
+          
+          {/* Collection Button - Icon with counter */}
+          <TouchableOpacity 
+            style={s.collectionIconBtn} 
+            onPress={() => setShowCollection(true)}
+            activeOpacity={0.7}
+          >
+            <View style={s.collectionIconCircle}>
+              <Ionicons name="library-outline" size={22} color={C.gold} />
+              {scannedArtifacts.length > 0 && (
+                <View style={s.collectionBadge}>
+                  <Text style={s.collectionBadgeText}>{scannedArtifacts.length}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
-      {/* ── Camera / Post-Scan View (Smaller) ── */}
+      {/* ── Camera / Post-Scan View ── */}
       <View style={s.cameraContainer}>
         {cameraActive ? (
           <View style={s.cameraWrap}>
@@ -850,7 +835,7 @@ export default function QRScanner() {
             
             {/* Scanning hint overlay */}
             <View style={s.scanHintOverlay}>
-              <Text style={s.scanHintText}>Position QR code inside the frame</Text>
+              <Text style={s.scanHintText}>Position QR code inside the gold frame</Text>
             </View>
           </View>
         ) : (
@@ -860,7 +845,7 @@ export default function QRScanner() {
               {artifact && (
                 <View style={s.postScanSuccess}>
                   <View style={s.postScanIconWrap}>
-                    <Text style={s.postScanCheckmark}>✓</Text>
+                    <Ionicons name="checkmark" size={32} color={C.success} />
                   </View>
                   <Text style={s.postScanTitle}>Artifact Identified</Text>
                   <Text style={s.postScanName}>{artifact.name}</Text>
@@ -880,7 +865,7 @@ export default function QRScanner() {
         )}
       </View>
 
-      {/* ── Status Area (Higher padding bottom to clear nav) ── */}
+      {/* ── Status Area ── */}
       <SafeAreaView edges={['bottom']} style={s.statusSafe}>
         <View style={s.statusArea}>
           {scanning ? (
@@ -905,32 +890,20 @@ export default function QRScanner() {
             <View style={s.hintBox}>
               <Text style={s.hintIco}>◈</Text>
               <Text style={s.hintTxt}>
-                Point your camera at an artifact's QR code to reveal its history
+                Point your camera at an artifact's QR code to reveal its sacred history and liturgical significance
               </Text>
             </View>
           ) : null}
         </View>
       </SafeAreaView>
 
-      {/* ── Collection Button ── */}
-      <View style={s.collectionButtonContainer}>
-        <TouchableOpacity
-          style={s.collectionButton}
-          onPress={() => setShowCollection(true)}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="library-outline" size={20} color="#FFF" />
-          <Text style={s.collectionButtonText}>Collection ({scannedArtifacts.length})</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Artifact Detail Modal ── */}
+      {/* ─── Artifact Detail Modal ── */}
       <ArtifactModal artifact={artifact} onClose={reset} />
     </View>
   );
 }
 
-
+// ─── Styles (Sacred Heritage Theme) ────────────────────────────────────────────
 const s = StyleSheet.create({
   container: {
     flex: 1,
@@ -944,37 +917,78 @@ const s = StyleSheet.create({
     padding: 32,
   },
 
-  // ── Header (Compact) ──
+  // ── Header with Collection Icon ──
   headerSafe: {
     backgroundColor: C.bg,
   },
   header: {
     paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerLeft: {
+    flex: 1,
   },
   eyebrow: {
-    fontSize: 10,
-    letterSpacing: 2.5,
-    color: C.inkMid,
+    fontSize: 9.5,
+    letterSpacing: 3.5,
+    color: C.gold,
+    fontWeight: '700',
     marginBottom: 4,
-    textTransform: 'uppercase',
   },
   title: {
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: '800',
     color: C.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   goldLine: {
-    width: 36,
+    width: 40,
     height: 3,
     backgroundColor: C.gold,
     borderRadius: 2,
     marginTop: 8,
   },
+  
+  // Collection Icon Button
+  collectionIconBtn: {
+    marginTop: 4,
+  },
+  collectionIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: C.goldSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: C.borderGold,
+    position: 'relative',
+  },
+  collectionBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: C.gold,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: C.bg,
+  },
+  collectionBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: C.ink,
+  },
 
-  // ── Camera Container (Smaller) ──
+  // ── Camera Container ──
   cameraContainer: {
     height: SCREEN_HEIGHT * 0.45,
     marginHorizontal: 20,
@@ -982,10 +996,10 @@ const s = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#000',
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
+    shadowRadius: 16,
     elevation: 8,
   },
   cameraWrap: {
@@ -999,7 +1013,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     height: '20%',
-    backgroundColor: 'rgba(26,22,18,0.4)',
+    backgroundColor: C.vignette,
   },
   vignetteBottom: {
     position: 'absolute',
@@ -1007,7 +1021,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     height: '20%',
-    backgroundColor: 'rgba(26,22,18,0.4)',
+    backgroundColor: C.vignette,
   },
   vignetteLeft: {
     position: 'absolute',
@@ -1015,7 +1029,7 @@ const s = StyleSheet.create({
     left: 0,
     width: '12%',
     height: '60%',
-    backgroundColor: 'rgba(26,22,18,0.4)',
+    backgroundColor: C.vignette,
   },
   vignetteRight: {
     position: 'absolute',
@@ -1023,7 +1037,7 @@ const s = StyleSheet.create({
     right: 0,
     width: '12%',
     height: '60%',
-    backgroundColor: 'rgba(26,22,18,0.4)',
+    backgroundColor: C.vignette,
   },
   frameContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -1038,14 +1052,16 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   scanHintText: {
-    backgroundColor: 'rgba(26,22,18,0.7)',
+    backgroundColor: 'rgba(30,27,23,0.8)',
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 20,
     fontSize: 12,
     color: C.gold,
     fontWeight: '600',
     letterSpacing: 0.5,
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
 
   // ── Post-Scan View ──
@@ -1059,7 +1075,7 @@ const s = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 32,
     alignItems: 'center',
-    gap: 20,
+    gap: 24,
   },
   postScanSuccess: {
     alignItems: 'center',
@@ -1069,15 +1085,12 @@ const s = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: C.goldSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
-  },
-  postScanCheckmark: {
-    fontSize: 28,
-    color: C.success,
-    fontWeight: '800',
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
   postScanTitle: {
     fontSize: 12,
@@ -1087,28 +1100,30 @@ const s = StyleSheet.create({
     letterSpacing: 1.5,
   },
   postScanName: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
     color: C.ink,
     marginTop: 2,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   postScanCategory: {
     fontSize: 12,
     color: C.gold,
     fontWeight: '600',
     marginTop: 2,
+    letterSpacing: 1,
   },
   clickToScanBtn: {
     width: '100%',
     backgroundColor: C.ink,
-    borderRadius: 14,
+    borderRadius: 50,
     paddingVertical: 14,
     alignItems: 'center',
     shadowColor: C.ink,
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
+    shadowRadius: 12,
     elevation: 4,
     marginTop: 8,
   },
@@ -1119,7 +1134,7 @@ const s = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // ── Status Area (With extra bottom padding) ──
+  // ── Status Area ──
   statusSafe: {
     backgroundColor: C.bg,
   },
@@ -1145,10 +1160,10 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FDF0EE',
+    backgroundColor: C.goldSoft,
     borderWidth: 1.5,
-    borderColor: '#F0C4BC',
-    borderRadius: 14,
+    borderColor: C.borderGold,
+    borderRadius: 16,
     padding: 14,
   },
   errorIcon: {
@@ -1201,34 +1216,7 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: C.inkMid,
-    lineHeight: 20,
-  },
-
-  // ── Collection Button ──
-  collectionButtonContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 20,
-    backgroundColor: C.bg,
-  },
-  collectionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.ink,
-    borderRadius: 14,
-    paddingVertical: 14,
-    gap: 8,
-    shadowColor: C.ink,
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  collectionButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    lineHeight: 22,
   },
 
   // ── Permission Screen ──
@@ -1240,17 +1228,16 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
-  },
-  permIcon: {
-    fontSize: 40,
-    color: C.gold,
+    borderWidth: 1,
+    borderColor: C.borderGold,
   },
   permTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
     color: C.ink,
     marginBottom: 8,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   permSub: {
     fontSize: 15,
@@ -1263,7 +1250,7 @@ const s = StyleSheet.create({
     backgroundColor: C.ink,
     paddingHorizontal: 36,
     paddingVertical: 16,
-    borderRadius: 14,
+    borderRadius: 50,
     width: '100%',
     alignItems: 'center',
   },
