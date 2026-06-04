@@ -53,36 +53,12 @@ export default function EmailPrefs({ navigation }: any) {
           </View>
           <View style={[styles.row, styles.rowBorder]}>
             <View>
-              <Text style={styles.rowLabel}>Promotions</Text>
-              <Text style={styles.rowDesc}>Special offers and discounts</Text>
-            </View>
-            <Switch
-              value={emails.promotions}
-              onValueChange={(val) => setEmails({ ...emails, promotions: val })}
-              trackColor={{ false: C.border, true: C.gold }}
-              thumbColor={C.surface}
-            />
-          </View>
-          <View style={[styles.row, styles.rowBorder]}>
-            <View>
               <Text style={styles.rowLabel}>Events</Text>
               <Text style={styles.rowDesc}>Upcoming tours and exhibitions</Text>
             </View>
             <Switch
               value={emails.events}
               onValueChange={(val) => setEmails({ ...emails, events: val })}
-              trackColor={{ false: C.border, true: C.gold }}
-              thumbColor={C.surface}
-            />
-          </View>
-          <View style={styles.row}>
-            <View>
-              <Text style={styles.rowLabel}>Newsletter</Text>
-              <Text style={styles.rowDesc}>Weekly digest</Text>
-            </View>
-            <Switch
-              value={emails.newsletter}
-              onValueChange={(val) => setEmails({ ...emails, newsletter: val })}
               trackColor={{ false: C.border, true: C.gold }}
               thumbColor={C.surface}
             />

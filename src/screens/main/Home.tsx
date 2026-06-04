@@ -516,7 +516,34 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
   const [modalIsSaved, setModalIsSaved] = useState(false);
   const [modalIsFavorited, setModalIsFavorited] = useState(false);
   const [interestedIds, setInterestedIds] = useState<string[]>([]);
+  //navbar visibility refs
+  const lastScrollY = useRef(0);
+  const navbarVisibleRef = useRef(true);
 
+  const handleScroll = (event: any) => {
+  const currentY = event.nativeEvent.contentOffset.y;
+
+  if (currentY <= 20) {
+    navbarVisibleRef.current = true;
+    setNavbarVisible?.(true);
+    lastScrollY.current = currentY;
+    return;
+  }
+
+  const diff = currentY - lastScrollY.current;
+
+  if (Math.abs(diff) < 10) return;
+
+  if (diff > 0 && navbarVisibleRef.current) {
+    navbarVisibleRef.current = false;
+    setNavbarVisible?.(false);
+  } else if (diff < 0 && !navbarVisibleRef.current) {
+    navbarVisibleRef.current = true;
+    setNavbarVisible?.(true);
+  }
+
+  lastScrollY.current = currentY;
+};
   // Feed modal state
   const [showFeedModal, setShowFeedModal] = useState(false);
   const [feedModalTab, setFeedModalTab] = useState<'announcements' | 'events'>('announcements');
@@ -830,10 +857,12 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
         </View>
       )}
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
+     <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.scroll}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}
+    >
         {/* ─── Hero Header ────────────────────────────────────────────── */}
         <View style={styles.hero}>
           <ImageBackground

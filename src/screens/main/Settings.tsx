@@ -254,7 +254,7 @@ export default function Settings({ navigation, onClose }: any) {
           <Row 
             icon="logo-outline"
             label="Sacred Heritage" 
-            value="© 2024"    
+            value="© 2026"    
             onPress={() => {}} 
             isLast
           />

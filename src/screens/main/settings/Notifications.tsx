@@ -75,18 +75,6 @@ export default function Notifications({ navigation }: any) {
               thumbColor={C.surface}
             />
           </View>
-          <View style={styles.row}>
-            <View>
-              <Text style={styles.rowLabel}>Newsletter</Text>
-              <Text style={styles.rowDesc}>Weekly digest</Text>
-            </View>
-            <Switch
-              value={notifications.newsletter}
-              onValueChange={(val) => setNotifications({ ...notifications, newsletter: val })}
-              trackColor={{ false: C.border, true: C.gold }}
-              thumbColor={C.surface}
-            />
-          </View>
         </View>
       </View>
     </SafeAreaView>

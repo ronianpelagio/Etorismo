@@ -32,6 +32,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+#Admin Env
+admin/.env*.local
+
 # Supabase config with API keys
 src/services/supabase.ts
 admin/src/services/supabase.ts
@@ -42,3 +45,6 @@ admin/src/services/supabase.ts
 # generated native folders
 /ios
 /android
+
+#claude
+claude/
