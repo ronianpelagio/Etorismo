@@ -7,26 +7,33 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ArtifactsPage from './pages/ArtifactsPage';
 import UsersPage from './pages/UsersPage';
-import RatingsPage from './pages/RatingsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import EventsPage from './pages/EventsPage';
 import SettingsPage from './pages/SettingsPage';
 import SearchBar from './components/SearchBar';
 import NotificationDropdown from './components/NotificationDropdown';
-import { ChevronRight, Loader2, Menu } from 'lucide-react';
+import { ChevronRight, Loader2, Menu, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { ThemeProvider, useTheme } from '@/utils/theme';
 import { navPages, pageTitleMap, type PageKey } from './navigation';
 
-const pageSubtitleMap: Record<PageKey, string> = {
-  dashboard: 'Overview of activity, usage, and visitor insights.',
-  artifacts: 'Manage artifact inventory and presentation.',
-  users: 'Manage museum app accounts and access.',
-  reviews: 'Browse visitor feedback and star ratings.',
-  announcements: 'Publish announcements and news items.',
-  events: 'Create and manage museum events.',
-  settings: 'Update preferences and application defaults.',
-};
+// ─── ThemeToggle outside App so hooks are never conditionally called ──────────
+
+function ThemeToggle() {
+  try {
+    const { theme, toggle } = useTheme();
+    return (
+      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={toggle}>
+        {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </Button>
+    );
+  } catch {
+    return null;
+  }
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [session, setSession] = useState<any | null>(null);
@@ -36,7 +43,6 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [search, setSearch] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -140,20 +146,12 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard':
-        return <DashboardPage profile={profile} />;
-      case 'artifacts':
-        return <ArtifactsPage />;
-      case 'users':
-        return <UsersPage />;
-      case 'reviews':
-        return <RatingsPage />;
-      case 'announcements':
-        return <AnnouncementsPage />;
-      case 'events':
-        return <EventsPage />;
-      case 'settings':
-        return <SettingsPage />;
+      case 'dashboard':     return <DashboardPage profile={profile} />;
+      case 'artifacts':     return <ArtifactsPage />;
+      case 'users':         return <UsersPage />;
+      case 'announcements': return <AnnouncementsPage />;
+      case 'events':        return <EventsPage />;
+      case 'settings':      return <SettingsPage />;
     }
   };
 
@@ -207,11 +205,10 @@ export default function App() {
 
             <div className="ml-auto flex items-center gap-2">
               <SearchBar
-                value={search}
-                onChange={setSearch}
-                placeholder="Search…"
                 className="hidden w-64 md:block"
+                onNavigate={handleSelect}
               />
+              <ThemeToggle />
               <NotificationDropdown />
             </div>
           </header>
@@ -238,12 +235,11 @@ export default function App() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="dark admin-scope min-h-screen bg-background text-foreground antialiased">
-      {children}
-    </div>
+    <ThemeProvider>
+      <div className="admin-scope min-h-screen bg-background text-foreground antialiased">{children}</div>
+    </ThemeProvider>
   );
 }
 
-// Keep navPages/PageKey re-exported for any external imports
 export { navPages };
 export type { PageKey };

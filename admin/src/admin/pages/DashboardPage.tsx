@@ -99,7 +99,7 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
     <div>
       <PageHeader
         eyebrow="Overview"
-        title={`Welcome back${profile?.email ? `, ${profile.email.split('@')[0]}` : ''}`}
+        title={`Welcome Admin${profile?.email ? `, ${profile.first_name.split('@')[0]}` : ''}`}
         description="A snapshot of visitors, content, and engagement across the collection."
         actions={
           <Badge
