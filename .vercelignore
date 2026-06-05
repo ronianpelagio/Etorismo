@@ -1,0 +1,13 @@
+node_modules/
+**/node_modules/
+**/.git/
+**/.venv/
+**/dist/
+admin/dist/
+**/build/
+*.log
+.expo/
+.expo-shared/
+android/
+ios/
+**/secrets.env
