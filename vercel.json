@@ -1,16 +1,22 @@
+
 {
   "version": 2,
   "builds": [
     {
       "src": "admin/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": { "distDir": "dist/client" }
     }
   ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/admin/dist/$1"
+  "functions": {
+    "api/ssr.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 10
     }
+  },
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/api/ssr" }
   ]
 }
