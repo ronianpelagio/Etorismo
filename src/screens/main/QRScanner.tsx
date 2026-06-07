@@ -45,26 +45,23 @@ const C = {
   vignette: 'rgba(30,27,23,0.35)',
 };
 
+type ArtifactTranslation = {
+  language_code: string;
+  name: string;
+  description: string | null;
+  audio_url: string | null;
+};
+
 type Artifact = {
   id: string;
   name: string;
   category: string;
   qr_code: string;
-  scanned_artifacts: string[];
   qr_value: string;
   created_at: string;
   description?: string;
-  description_en?: string;
-  description_fil?: string;
-  description_ja?: string;
-  description_es?: string;
-  description_ko?: string;
-  audio_en?: string;
-  audio_fil?: string;
-  audio_ja?: string;
-  audio_es?: string;
-  audio_ko?: string;
   image_url?: string;
+  creator?: string;
 };
 
 const CATEGORY_IMAGES: Record<string, string> = {
@@ -123,24 +120,18 @@ function ArtifactModal({
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
   const [playingLang, setPlayingLang] = useState<string | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'fil' | 'ja' | 'es' | 'ko'>('en');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
+  const [translations, setTranslations] = useState<ArtifactTranslation[]>([]);
   const [isSaved, setIsSaved] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const playerRef = useRef<any>(null);
   const playbackSubscriptionRef = useRef<any>(null);
 
-  const AUDIO_LANGUAGES = [
-    { code: 'en', label: 'English', flag: '🇺🇸', dbKey: 'audio_en' },
-    { code: 'fil', label: 'Filipino', flag: '🇵🇭', dbKey: 'audio_fil' },
-    { code: 'ja', label: 'Japanese', flag: '🇯🇵', dbKey: 'audio_ja' },
-    { code: 'es', label: 'Spanish', flag: '🇪🇸', dbKey: 'audio_es' },
-    { code: 'ko', label: 'Korean', flag: '🇰🇷', dbKey: 'audio_ko' },
-  ];
-
   useEffect(() => {
     if (artifact) {
       setupAudioModal();
       checkSaveAndFavorite();
+      fetchTranslations(artifact.id);
       
       Animated.parallel([
         Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 100, friction: 10 }),
@@ -168,6 +159,21 @@ function ArtifactModal({
     }
   }
 
+  async function fetchTranslations(artifactId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('artifact_translations')
+        .select('language_code, name, description, audio_url')
+        .eq('artifact_id', artifactId);
+      if (error) throw error;
+      setTranslations(data || []);
+      if (data && data.length > 0) setSelectedLanguage(data[0].language_code);
+    } catch (e: any) {
+      console.error('Error fetching translations:', e.message);
+      setTranslations([]);
+    }
+  }
+
   async function checkSaveAndFavorite() {
     if (!artifact) return;
     const saved = await getStringArray(STORAGE_KEYS.savedArtifacts);
@@ -189,20 +195,8 @@ function ArtifactModal({
   }
 
   function getDescriptionByLanguage(lang: string): string {
-    const art = artifact as any;
-    switch (lang) {
-      case 'fil':
-        return art?.description_fil || art?.description_en || `Sacred artifact from the Sacred Heritage Collection.`;
-      case 'ja':
-        return art?.description_ja || art?.description_en || `神聖な遺産コレクションの聖遺物。`;
-      case 'es':
-        return art?.description_es || art?.description_en || `Artefacto sagrado de la Colección de Patrimonio Sagrado.`;
-      case 'ko':
-        return art?.description_ko || art?.description_en || `신성한 유산 컬렉션의 성물.`;
-      case 'en':
-      default:
-        return art?.description_en || art?.description || `This sacred artifact is part of the Sacred Heritage Collection, preserved as a testament to centuries of liturgical tradition and craftsmanship.`;
-    }
+    const t = translations.find(t => t.language_code === lang);
+    return t?.description || artifact?.description || `This sacred artifact is part of the Sacred Heritage Collection, preserved as a testament to centuries of liturgical tradition and craftsmanship.`;
   }
 
   async function playAudio(audioUrl: string, lang: string) {
@@ -257,6 +251,7 @@ function ArtifactModal({
       Animated.timing(fadeAnim,  { toValue: 0, duration: 200, useNativeDriver: true }),
     ]).start(() => {
       setSelectedLanguage('en');
+      setTranslations([]);
       onClose();
     });
   };
@@ -266,8 +261,14 @@ function ArtifactModal({
   const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category]
     ?? 'https://via.placeholder.com/600?text=Artifact';
   
-  const art = artifact as any;
-  const availableAudio = AUDIO_LANGUAGES.filter(lang => art[lang.dbKey]);
+  const langMeta: Record<string, { label: string; flag: string }> = {
+    en:  { label: 'English',  flag: '🇺🇸' },
+    fil: { label: 'Filipino', flag: '🇵🇭' },
+    ja:  { label: 'Japanese', flag: '🇯🇵' },
+    es:  { label: 'Spanish',  flag: '🇪🇸' },
+    ko:  { label: 'Korean',   flag: '🇰🇷' },
+  };
+  const availableAudio = translations.filter(t => t.audio_url);
 
   return (
     <Modal
@@ -325,73 +326,63 @@ function ArtifactModal({
                 <View style={ams.section}>
                   <Text style={ams.sectionLabel}>AUDIO GUIDE</Text>
                   
-                  {/* Language Tabs - Gold themed */}
+                  {/* Language Tabs */}
                   <View style={ams.audioLangTabs}>
-                    {availableAudio.map(lang => (
-                      <TouchableOpacity
-                        key={lang.code}
-                        style={[
-                          ams.audioLangTab,
-                          selectedLanguage === lang.code && ams.audioLangTabActive
-                        ]}
-                        onPress={() => {
-                          setSelectedLanguage(lang.code as 'en' | 'fil' | 'ja' | 'es' | 'ko');
-                          stopAudio();
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={ams.audioLangTabFlag}>{lang.flag}</Text>
-                        <Text style={[
-                          ams.audioLangTabText,
-                          selectedLanguage === lang.code && ams.audioLangTabTextActive
-                        ]}>
-                          {lang.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                    {availableAudio.map(t => {
+                      const meta = langMeta[t.language_code] || { label: t.language_code.toUpperCase(), flag: '🌐' };
+                      return (
+                        <TouchableOpacity
+                          key={t.language_code}
+                          style={[ams.audioLangTab, selectedLanguage === t.language_code && ams.audioLangTabActive]}
+                          onPress={() => { setSelectedLanguage(t.language_code); stopAudio(); }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={ams.audioLangTabFlag}>{meta.flag}</Text>
+                          <Text style={[ams.audioLangTabText, selectedLanguage === t.language_code && ams.audioLangTabTextActive]}>
+                            {meta.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
 
-                  {/* Audio Player - Gold accent */}
+                  {/* Audio Player */}
                   {(() => {
-                    const langObj = AUDIO_LANGUAGES.find(l => l.code === selectedLanguage);
-                    return langObj && art[langObj.dbKey as keyof typeof art] ? (
+                    const cur = availableAudio.find(t => t.language_code === selectedLanguage);
+                    if (!cur?.audio_url) return null;
+                    const meta = langMeta[cur.language_code] || { label: cur.language_code.toUpperCase(), flag: '🌐' };
+                    return (
                       <TouchableOpacity
-                        style={[ams.audioPlayButton, playingLang === selectedLanguage && ams.audioPlayButtonActive]}
+                        style={[ams.audioPlayButton, playingLang === cur.language_code && ams.audioPlayButtonActive]}
                         onPress={() => {
-                          const lang = AUDIO_LANGUAGES.find(l => l.code === selectedLanguage);
-                          if (lang) {
-                            const audioUrl = art[lang.dbKey as keyof typeof art];
-                            if (audioUrl) {
-                              playingLang === selectedLanguage
-                                ? stopAudio()
-                                : playAudio(audioUrl as string, selectedLanguage);
-                            }
-                          }
+                          playingLang === cur.language_code
+                            ? stopAudio()
+                            : playAudio(cur.audio_url!, cur.language_code);
                         }}
                         activeOpacity={0.8}
                       >
-                        <View style={[ams.audioPlayIcon, playingLang === selectedLanguage && ams.audioPlayIconActive]}>
+                        <View style={[ams.audioPlayIcon, playingLang === cur.language_code && ams.audioPlayIconActive]}>
                           <Ionicons
-                            name={playingLang === selectedLanguage ? 'pause' : 'play'}
+                            name={playingLang === cur.language_code ? 'pause' : 'play'}
                             size={20}
-                            color={playingLang === selectedLanguage ? C.ink : C.gold}
+                            color={playingLang === cur.language_code ? C.ink : C.gold}
                           />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={ams.audioPlayLabel}>
-                            {playingLang === selectedLanguage ? 'Now playing' : 'Tap to listen'}
+                            {playingLang === cur.language_code ? 'Now playing' : 'Tap to listen'}
                           </Text>
                           <Text style={ams.audioPlaySub}>
-                            {langObj.flag} {langObj.label} narration
+                            {meta.flag} {meta.label} narration
                           </Text>
                         </View>
                         <Ionicons
-                          name={playingLang === selectedLanguage ? 'volume-high' : 'volume-medium-outline'}
+                          name={playingLang === cur.language_code ? 'volume-high' : 'volume-medium-outline'}
                           size={20}
-                          color={playingLang === selectedLanguage ? C.gold : C.inkLight}
+                          color={playingLang === cur.language_code ? C.gold : C.inkLight}
                         />
                       </TouchableOpacity>
-                    ) : null;
+                    );
                   })()}
                 </View>
               )}

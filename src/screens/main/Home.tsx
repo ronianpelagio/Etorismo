@@ -17,6 +17,13 @@ const CARD_GAP = 10;
 const CARD_WIDTH = (SCREEN_WIDTH - 40 - CARD_GAP) / 2;
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
+type ArtifactTranslation = {
+  language_code: string;
+  name: string;
+  description: string | null;
+  audio_url: string | null;
+};
+
 type Artifact = {
   id: string;
   name: string;
@@ -29,20 +36,10 @@ type Artifact = {
   is_crown?: boolean;
   is_artwork?: boolean;
   description?: string;
-  description_en?: string;
-  description_fil?: string;
-  description_ja?: string;
-  description_es?: string;
-  description_ko?: string;
-  audio_en?: string;
-  audio_fil?: string;
-  audio_ja?: string;
-  audio_es?: string;
-  audio_ko?: string;
-  name_ja?: string;
-  name_fil?: string;
-  name_es?: string;
-  name_ko?: string;
+  creator?: string;
+  Historical_Significance?: string;
+  translations?: ArtifactTranslation[];
+  audio_url?: string; // from audio_guides
 };
 
 type Event = {
@@ -707,12 +704,14 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
       const { data: items, error: itemsError } = await supabase
         .from('artifacts')
-        .select('id, name, category, qr_code, created_at, description, description_en, description_fil, description_ja, description_es, description_ko, audio_en, audio_fil, audio_ja, audio_es, audio_ko, image_url, name_ja, name_fil, name_es, name_ko')
+        .select('id, name, category, qr_code, created_at, description, image_url, creator, Historical_Significance, artifact_translations(language_code, name, description, audio_url), audio_guides(audio_url)')
         .order('created_at', { ascending: false });
       if (itemsError) throw itemsError;
 
       const enriched: Artifact[] = (items || []).map(item => ({
         ...item,
+        translations: (item as any).artifact_translations || [],
+        audio_url: (item as any).audio_guides?.[0]?.audio_url || null,
         date: formatYear(item.created_at),
         image_url: item.image_url || CATEGORY_IMAGES[item.category] || 'https://via.placeholder.com/600',
         is_exhibition: item.category === 'Vestments' || item.category === 'Sacred Vessels',
@@ -1085,34 +1084,28 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                   </TouchableOpacity>
                 </View>
 
-                {(selectedArtifact.description || selectedArtifact.description_en) && (
+                {(selectedArtifact.description || (selectedArtifact.translations?.find(t => t.language_code === 'en')?.description)) && (
                   <View style={styles.modalSection}>
                     <Text style={styles.modalSectionLabel}>ABOUT THIS PIECE</Text>
                     <View style={styles.modalSectionUnderline} />
                     <Text style={styles.modalDesc}>
-                      {selectedArtifact.description || selectedArtifact.description_en}
+                      {selectedArtifact.description || selectedArtifact.translations?.find(t => t.language_code === 'en')?.description}
                     </Text>
                   </View>
                 )}
 
                 {/* ─── AUDIO GUIDE SECTION ─────────────────────────────────────── */}
                 {(() => {
-                  const langs = [
-                    { code: 'en' as const, label: 'EN', name: 'English', flag: '🇺🇸', key: 'audio_en', textKey: 'description_en' },
-                    { code: 'fil' as const, label: 'FIL', name: 'Filipino', flag: '🇵🇭', key: 'audio_fil', textKey: 'description_fil' },
-                    { code: 'ja' as const, label: 'JA', name: 'Japanese', flag: '🇯🇵', key: 'audio_ja', textKey: 'description_ja' },
-                    { code: 'es' as const, label: 'ES', name: 'Spanish', flag: '🇪🇸', key: 'audio_es', textKey: 'description_es' },
-                    { code: 'ko' as const, label: 'KO', name: 'Korean', flag: '🇰🇷', key: 'audio_ko', textKey: 'description_ko' },
-                  ];
-                  const art = selectedArtifact as Record<string, any>;
-                  
-                  // Check for audio URLs or fallback to descriptions for TTS
-                  const available = langs.filter(l => {
-                    const hasAudio = art[l.key] && art[l.key] !== 'No audio yet' && art[l.key] !== 'null';
-                    const hasText = art[l.textKey] && art[l.textKey].trim();
-                    return hasAudio || hasText;
-                  });
-                  
+                  const translations = selectedArtifact.translations || [];
+                  const langMeta: Record<string, { label: string; flag: string; name: string }> = {
+                    en:  { label: 'EN',  flag: '🇺🇸', name: 'English'  },
+                    fil: { label: 'FIL', flag: '🇵🇭', name: 'Filipino' },
+                    ja:  { label: 'JA',  flag: '🇯🇵', name: 'Japanese' },
+                    es:  { label: 'ES',  flag: '🇪🇸', name: 'Spanish'  },
+                    ko:  { label: 'KO',  flag: '🇰🇷', name: 'Korean'   },
+                  };
+
+                  const available = translations.filter(t => t.audio_url || t.description);
                   if (!available.length) return null;
 
                   return (
@@ -1122,37 +1115,35 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
 
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
                         <View style={styles.audioLangRow}>
-                          {available.map(lang => (
-                            <TouchableOpacity
-                              key={lang.code}
-                              style={[styles.audioLangChip, selectedLanguage === lang.code && styles.audioLangChipActive]}
-                              onPress={() => {
-                                setSelectedLanguage(lang.code);
-                                if (playingLang) cleanupAudio();
-                              }}
-                              activeOpacity={0.7}
-                            >
-                              <Text style={styles.audioLangFlag}>{lang.flag}</Text>
-                              <Text style={[styles.audioLangLabel, selectedLanguage === lang.code && styles.audioLangLabelActive]}>
-                                {lang.label}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
+                          {available.map(t => {
+                            const meta = langMeta[t.language_code] || { label: t.language_code.toUpperCase(), flag: '🌐', name: t.language_code };
+                            return (
+                              <TouchableOpacity
+                                key={t.language_code}
+                                style={[styles.audioLangChip, selectedLanguage === t.language_code && styles.audioLangChipActive]}
+                                onPress={() => {
+                                  setSelectedLanguage(t.language_code as any);
+                                  if (playingLang) cleanupAudio();
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={styles.audioLangFlag}>{meta.flag}</Text>
+                                <Text style={[styles.audioLangLabel, selectedLanguage === t.language_code && styles.audioLangLabelActive]}>
+                                  {meta.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
                         </View>
                       </ScrollView>
 
                       {(() => {
-                        const cur = available.find(l => l.code === selectedLanguage);
+                        const cur = available.find(t => t.language_code === selectedLanguage) || available[0];
                         if (!cur) return null;
-                        
-                        const audioUrl = art[cur.key];
-                        const text = art[cur.textKey];
-                        const hasValidAudio = audioUrl && audioUrl !== 'No audio yet' && audioUrl !== 'null' && !audioUrl.startsWith('tts://');
-                        const isPlaying = playingLang === selectedLanguage;
-                        const canPlay = hasValidAudio || (text && text.trim());
-                        
-                        if (!canPlay) return null;
-                        
+                        const meta = langMeta[cur.language_code] || { label: cur.language_code.toUpperCase(), flag: '🌐', name: cur.language_code };
+                        const hasValidAudio = !!cur.audio_url;
+                        const isPlaying = playingLang === cur.language_code;
+
                         return (
                           <TouchableOpacity
                             style={[styles.audioPlayer, isPlaying && styles.audioPlayerActive]}
@@ -1160,9 +1151,9 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                               if (isPlaying) {
                                 cleanupAudio();
                               } else if (hasValidAudio) {
-                                playAudio(audioUrl, selectedLanguage);
-                              } else if (text && text.trim()) {
-                                playAudio('', selectedLanguage, text);
+                                playAudio(cur.audio_url!, cur.language_code);
+                              } else if (cur.description?.trim()) {
+                                playAudio('', cur.language_code, cur.description);
                               }
                             }}
                             activeOpacity={0.8}
@@ -1175,8 +1166,8 @@ export default function HomeScreen({ setNavbarVisible }: { setNavbarVisible?: (v
                                 {isPlaying ? 'Now playing' : 'Tap to listen'}
                               </Text>
                               <Text style={styles.audioPlayerSub}>
-                                {cur.flag} {cur.name} narration
-                                {!hasValidAudio && text && ' (Text-to-Speech)'}
+                                {meta.flag} {meta.name} narration
+                                {!hasValidAudio && cur.description && ' (Text-to-Speech)'}
                               </Text>
                             </View>
                             <Ionicons
