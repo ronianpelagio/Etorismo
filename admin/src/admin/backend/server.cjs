@@ -44,14 +44,7 @@ const DEFAULT_VOICE = {
   ko: 'ko-KR-Standard-A',
 };
 
-// Map language to database column
-const COLUMN_MAP = {
-  en: 'audio_en',
-  fil: 'audio_fil',
-  ja: 'audio_ja',
-  es: 'audio_es',
-  ko: 'audio_ko',
-};
+// Map language to database column (REMOVED - now using artifact_translations table)
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TEXT SANITIZATION FUNCTION FOR DESCRIPTIONS
@@ -296,13 +289,6 @@ app.post('/generate-audio', async (req, res) => {
     }
 
     const selectedVoice = voiceName || voice || DEFAULT_VOICE[lang];
-    const column = COLUMN_MAP[lang];
-    
-    if (!column) {
-      return res.status(400).json({
-        error: `No column mapping for language: ${lang}`
-      });
-    }
 
     // Generate unique filename with sanitized text hash
     const textHash = require('crypto').createHash('md5').update(cleanText.substring(0, 100)).digest('hex').substring(0, 8);
@@ -359,13 +345,13 @@ app.post('/generate-audio', async (req, res) => {
 
     const audioUrl = publicData.publicUrl;
 
-    // Save URL to artifacts table
+    // Upsert audio URL into artifact_translations
     const { error: dbError } = await supabase
-      .from('artifacts')
-      .update({
-        [column]: audioUrl,
-      })
-      .eq('id', artifactId);
+      .from('artifact_translations')
+      .upsert(
+        { artifact_id: artifactId, language_code: lang, audio_url: audioUrl, name: '' },
+        { onConflict: 'artifact_id,language_code', ignoreDuplicates: false }
+      );
 
     if (dbError) {
       throw dbError;
