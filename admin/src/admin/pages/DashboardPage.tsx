@@ -34,6 +34,7 @@ import {
   DashboardStats,
 } from '../types';
 import { fetchDashboardStats, fetchUserDemographics } from './dashboardData';
+import { useTheme } from '@/utils/theme';
 
 const defaultStats: DashboardStats = {
   artifacts: 0,
@@ -88,6 +89,27 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
     date: p.date.slice(5),
     visitors: p.count,
   }));
+
+  const { theme } = useTheme();
+
+  const chartColors =
+    theme === 'dark'
+      ? {
+          stroke: '#F2F2F2',
+          grid: 'rgba(255,255,255,0.06)',
+          text: '#E6E6E6',
+          tooltipBg: 'rgba(6,6,6,0.9)',
+          tooltipBorder: 'rgba(255,255,255,0.12)',
+          cursor: 'rgba(255,255,255,0.06)',
+        }
+      : {
+          stroke: '#0f172a',
+          grid: 'rgba(15,23,42,0.06)',
+          text: '#0f172a',
+          tooltipBg: '#ffffff',
+          tooltipBorder: 'rgba(15,23,42,0.06)',
+          cursor: 'rgba(15,23,42,0.06)',
+        };
 
   const ageData = Object.entries(demographics.ageGroups).map(([k, v]) => ({ label: k, value: v }));
   const ageTotal = ageData.reduce((s, x) => s + x.value, 0);
@@ -175,24 +197,29 @@ export default function DashboardPage({ profile }: DashboardPageProps) {
                 <AreaChart data={chartData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
                   <defs>
                     <linearGradient id="visGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="oklch(0.985 0 0)" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="oklch(0.985 0 0)" stopOpacity={0} />
+                      <stop offset="0%" stopColor={chartColors.stroke} stopOpacity={0.35} />
+                      <stop offset="100%" stopColor={chartColors.stroke} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="oklch(0.22 0 0)" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: 'oklch(0.62 0 0)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: 'oklch(0.62 0 0)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <CartesianGrid stroke={chartColors.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: chartColors.text, fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis tick={{ fill: chartColors.text, fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip
-                    cursor={{ stroke: 'oklch(0.35 0 0)', strokeDasharray: '3 3' }}
+                    cursor={{ stroke: chartColors.cursor, strokeDasharray: '3 3' }}
                     contentStyle={{
-                      background: 'oklch(0.14 0 0)',
-                      border: '1px solid oklch(0.24 0 0)',
+                      background: chartColors.tooltipBg,
+                      border: `1px solid ${chartColors.tooltipBorder}`,
                       borderRadius: 12,
-                      color: 'oklch(0.985 0 0)',
+                      color: chartColors.text,
                       fontSize: 12,
                     }}
                   />
-                  <Area type="monotone" dataKey="visitors" stroke="oklch(0.985 0 0)" strokeWidth={2} fill="url(#visGrad)" />
+                  <Area type="monotone" dataKey="visitors" stroke={chartColors.stroke} strokeWidth={2} fill="url(#visGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
             )}

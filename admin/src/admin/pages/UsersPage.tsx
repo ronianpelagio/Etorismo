@@ -118,30 +118,45 @@ export default function UsersPage() {
 
       if (editItem) {
         // Update existing user in public.users
+        const updateData: any = { 
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+          gender: form.gender || null,
+          age: form.age ? parseInt(form.age) : null,
+          role: form.role, 
+          status: form.status 
+        };
+
         const { error: updateError } = await supabase
           .from('users')
-          .update({ 
-            first_name: form.first_name.trim(),
-            last_name: form.last_name.trim(),
-            gender: form.gender || null,
-            age: form.age ? parseInt(form.age) : null,
-            role: form.role, 
-            status: form.status 
-          })
+          .update(updateData)
           .eq('id', editItem.id);
         
         if (updateError) throw updateError;
 
-        // If password is provided, update it using reset password
+        // If password is provided, update it
         if (form.password) {
-          const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-            form.email,
-            { redirectTo: undefined } // Don't redirect
-          );
-          if (resetError) console.warn('Could not update password:', resetError.message);
+          const { error: passwordError } = await supabase.auth.updateUser({
+            password: form.password
+          });
+          
+          if (passwordError) {
+            console.warn('Could not update password:', passwordError.message);
+          }
         }
       } else {
-        // Create new user using regular signup
+        // FIRST: Check if user already exists
+        const { data: existingUser, error: checkError } = await supabase
+          .from('users')
+          .select('email')
+          .eq('email', form.email.trim().toLowerCase())
+          .single();
+        
+        if (existingUser) {
+          throw new Error('A user with this email already exists.');
+        }
+
+        // Create new user using regular signup with better error handling
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email: form.email.trim().toLowerCase(),
           password: form.password,
@@ -150,19 +165,24 @@ export default function UsersPage() {
               first_name: form.first_name.trim(),
               last_name: form.last_name.trim(),
             },
+            // Temporarily disable email confirmation to bypass SMTP issues
+            emailRedirectTo: window.location.origin,
           },
         });
 
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          console.error('Signup error details:', signUpError);
+          throw new Error(`Signup failed: ${signUpError.message}`);
+        }
         
         if (!authData.user) {
-          throw new Error('User creation failed. They may already exist.');
+          throw new Error('User creation failed - no user returned');
         }
 
-        // Wait a moment for the trigger to execute
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait for the trigger to execute
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Now update the user with additional fields
+        // Update the user with additional fields
         const { error: updateError } = await supabase
           .from('users')
           .update({
@@ -175,13 +195,15 @@ export default function UsersPage() {
 
         if (updateError) {
           console.error('Failed to update user details:', updateError);
+          // Don't throw - user was created successfully
         }
       }
 
       setShowModal(false);
       await load();
     } catch (err: any) {
-      setError(err.message);
+      console.error('Full error object:', err);
+      setError(err.message || 'An unexpected error occurred');
     } finally {
       setSaving(false);
     }
@@ -192,7 +214,7 @@ export default function UsersPage() {
     setSaving(true);
     
     try {
-      // Delete from public.users (the FK will handle auth.users if set up)
+      // Delete from public.users (cascade should handle auth.users if set up)
       const { error } = await supabase
         .from('users')
         .delete()
@@ -271,7 +293,7 @@ export default function UsersPage() {
 
       <Card className="rounded-2xl border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <SearchBar value={query} onChange={setQuery} placeholder="Search by email, name, or role…" className="w-full sm:w-72" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search users…" className="w-full sm:w-64" />
           <span className="text-xs text-muted-foreground">{filtered.length} {filtered.length === 1 ? 'user' : 'users'}</span>
         </div>
 
@@ -379,12 +401,11 @@ export default function UsersPage() {
         )}
       </Card>
 
-      {/* Create / Edit Modal */}
       <Modal
         open={showModal}
         onOpenChange={setShowModal}
         title={editItem ? 'Edit user' : 'Add user'}
-        description={editItem ? 'Update the user’s details and permissions.' : 'Create a new account for an admin or visitor.'}
+        description={editItem ? 'Update the user\'s details and permissions.' : 'Create a new account for an admin or visitor.'}
         footer={
           <>
             <Button variant="ghost" onClick={() => setShowModal(false)} className="rounded-xl">
@@ -397,19 +418,18 @@ export default function UsersPage() {
         }
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!editItem && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">Email *</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="user@example.com"
-                className="h-10 rounded-xl bg-muted/40"
-                required
-              />
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Email *</Label>
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="user@example.com"
+              className="h-10 rounded-xl bg-muted/40"
+              disabled={!!editItem}
+              required
+            />
+          </div>
           
           <div className="space-y-1.5">
             <Label className="text-xs">

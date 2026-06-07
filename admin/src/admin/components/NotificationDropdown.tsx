@@ -131,7 +131,7 @@ export default function NotificationDropdown() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'users' },
-        (payload) => {
+        (payload: any) => {
           const row = payload.new as {
             first_name: string;
             last_name: string;
@@ -152,7 +152,7 @@ export default function NotificationDropdown() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'user_ratings' },
-        async (payload) => {
+        async (payload: any) => {
           const row = payload.new as {
             rating: number;
             feedback: string | null;
@@ -184,7 +184,7 @@ export default function NotificationDropdown() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'audio_guides' },
-        (payload) => {
+        (payload: any) => {
           const row = payload.new as {
             artifact_name: string | null;
             artifact_id: string | null;

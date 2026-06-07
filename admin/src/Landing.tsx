@@ -1,16 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "ETorismo" },
-      { name: "description", content: "ETorismo admin portal." },
-    ],
-  }),
-  component: Index,
-});
-
-function Index() {
+export default function Landing() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">

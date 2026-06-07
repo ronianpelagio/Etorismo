@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar as CalIcon,
@@ -410,11 +410,22 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 8;
 
   useEffect(() => { load(); }, [currentPage]);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return events;
+    return events.filter(
+      (i) =>
+        i.title.toLowerCase().includes(q) ||
+        (i.description ?? '').toLowerCase().includes(q)
+    );
+  }, [events, query]);
 
   const load = async () => {
     setLoading(true);
@@ -537,22 +548,34 @@ export default function EventsPage() {
       )}
 
       {/* ── list ── */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search events…"
+          className="w-full sm:w-64 rounded-xl bg-muted/40"
+        />
+        <span className="text-xs text-muted-foreground">{filtered.length} {filtered.length === 1 ? 'event' : 'events'}</span>
+      </div>
+
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: itemsPerPage }).map((_, i) => (
             <Skeleton key={i} className="h-[88px] rounded-2xl" />
           ))}
         </div>
-      ) : events.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-border bg-card">
           <EmptyState
             icon={<CalIcon className="h-5 w-5" />}
-            title="No events yet"
-            description="Schedule your first museum event."
+            title={query ? 'No matching events' : 'No events yet'}
+            description={query ? 'Try a different search term.' : 'Schedule your first museum event.'}
             action={
-              <Button onClick={openCreate} variant="outline" className="rounded-xl">
-                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add event
-              </Button>
+              !query && (
+                <Button onClick={openCreate} variant="outline" className="rounded-xl">
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Add event
+                </Button>
+              )
             }
           />
         </div>
@@ -560,7 +583,7 @@ export default function EventsPage() {
         <>
           <div className="space-y-2">
             <AnimatePresence initial={false}>
-              {events.map((item) => (
+              {filtered.map((item) => (
                 <EventRow
                   key={item.id}
                   item={item as any}

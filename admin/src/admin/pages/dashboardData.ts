@@ -27,7 +27,8 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     queryCount('artifacts'),
     queryCount('users'),
     queryCount('users', { status: 'active' }),
-    queryCount('users', { status: 'blocked' }),
+    // schema now uses 'active' / 'inactive' for user status
+    queryCount('users', { status: 'inactive' }),
     queryCount('user_ratings'),
     querySafe(async () => {
       const { count, error } = await supabase.from('artifacts').select('id', { head: true, count: 'exact' }).not('qr_code', 'is', null);
@@ -102,7 +103,8 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
 export async function fetchUserDemographics(): Promise<DashboardDemographics> {
   const rowsResponse = await querySafe(async () => {
-    const { data, error } = await supabase.from('users').select('gender, birthdate, location, city');
+    // users table now stores `age` (integer) and no longer provides birthdate/location columns
+    const { data, error } = await supabase.from('users').select('gender, age');
     if (error) throw error;
     return data as Array<Record<string, any>>;
   });
@@ -131,22 +133,21 @@ export async function fetchUserDemographics(): Promise<DashboardDemographics> {
     else if (gender) result.gender.other += 1;
     else result.gender.unknown += 1;
 
-    const birthdate = row.birthdate ? new Date(row.birthdate) : null;
-    if (birthdate && !Number.isNaN(birthdate.getTime())) {
-      const age = Math.max(0, new Date().getFullYear() - birthdate.getFullYear());
-      if (age < 18) result.ageGroups['13-17'] += 1;
-      else if (age < 25) result.ageGroups['18-24'] += 1;
-      else if (age < 35) result.ageGroups['25-34'] += 1;
-      else if (age < 45) result.ageGroups['35-44'] += 1;
-      else if (age < 55) result.ageGroups['45-54'] += 1;
-      else if (age < 65) result.ageGroups['55-64'] += 1;
+    // schema provides `age` as an integer; bucket into groups
+    const ageVal = typeof row.age === 'number' ? row.age : Number(row.age);
+    if (!Number.isNaN(ageVal) && ageVal >= 0) {
+      if (ageVal < 18) result.ageGroups['13-17'] += 1;
+      else if (ageVal < 25) result.ageGroups['18-24'] += 1;
+      else if (ageVal < 35) result.ageGroups['25-34'] += 1;
+      else if (ageVal < 45) result.ageGroups['35-44'] += 1;
+      else if (ageVal < 55) result.ageGroups['45-54'] += 1;
+      else if (ageVal < 65) result.ageGroups['55-64'] += 1;
       else result.ageGroups['65+'] += 1;
     } else {
       result.ageGroups.unknown += 1;
     }
 
-    const location = String(row.location ?? row.city ?? '').trim() || 'Unknown';
-    result.locations[location] = (result.locations[location] ?? 0) + 1;
+    // locations were removed from the schema; leave locations empty so UI shows "No location data yet"
   });
 
   return result;

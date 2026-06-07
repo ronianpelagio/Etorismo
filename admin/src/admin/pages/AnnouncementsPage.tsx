@@ -533,23 +533,22 @@ export default function AnnouncementsPage() {
           </Button>
         }
       />
-
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <SearchBar 
-          value={query} 
-          onChange={setQuery} 
-          placeholder="Search announcements…" 
-          className="w-full sm:w-72" 
-        />
-        <span className="text-xs text-muted-foreground">{filtered.length} of {totalCount} items</span>
-      </div>
-
       {/* Error display */}
       {error && (
         <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
+
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search announcements…"
+          className="w-full sm:w-64 rounded-xl bg-muted/40"
+        />
+        <span className="text-xs text-muted-foreground">{filtered.length} {filtered.length === 1 ? 'announcement' : 'announcements'}</span>
+      </div>
 
       {/* ── list ── */}
       {loading ? (

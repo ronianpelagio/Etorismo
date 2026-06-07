@@ -63,7 +63,7 @@ export default function App() {
 
     restoreSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_: string, newSession: any) => {
       setSession(newSession);
       if (newSession?.user) loadProfile(newSession.user.id);
       else setProfile(null);
