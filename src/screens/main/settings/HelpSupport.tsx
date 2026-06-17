@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   View,
   Text,
@@ -9,64 +9,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-const C = {
-  bg: '#F7F4EF',
-  surface: '#FFFFFF',
-  ink: '#1A1612',
-  inkMid: '#6B6459',
-  gold: '#C9A84C',
-  border: '#EAE4DA',
-};
-
-const FAQS = [
-  { question: 'How do I save artifacts?', answer: 'Tap the bookmark icon on any artifact to save it to your collection.' },
-  { question: 'How do I mark favorites?', answer: 'Tap the heart icon to mark artifacts as your favorites.' },
-  { question: 'Can I listen to audio in multiple languages?', answer: 'Yes, each artifact has audio guides in English, Filipino, Japanese, Spanish, and Korean.' },
-  { question: 'How do I scan QR codes?', answer: 'Use the QR Scanner from the main menu to scan artifact QR codes.' },
-];
-
-export default function HelpSupport({ navigation }: any) {
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backTxt}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.pageTitle}>Help & Support</Text>
-        <View style={{ width: 40 }} />
-      </View>
-      <View style={styles.titleDivider} />
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>FREQUENTLY ASKED QUESTIONS</Text>
-          {FAQS.map((faq, idx) => (
-            <View key={idx} style={[styles.faqCard, idx < FAQS.length - 1 && styles.faqBorder]}>
-              <Text style={styles.faqQuestion}>❓ {faq.question}</Text>
-              <Text style={styles.faqAnswer}>{faq.answer}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.contactSection}>
-          <Text style={styles.sectionLabel}>CONTACT US</Text>
-          <View style={styles.contactCard}>
-            <View style={styles.contactRow}>
-              <Ionicons name="mail" size={20} color={C.gold} />
-              <Text style={styles.contactText}>support@etorismo.com</Text>
-            </View>
-            <View style={styles.contactRow}>
-              <Ionicons name="call" size={20} color={C.gold} />
-              <Text style={styles.contactText}>+1 (555) 123-4567</Text>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+import { useAppTheme } from '../../../context/ThemeContext';
+import { THEMES } from '../../../constants/themes';
+function buildC(t: typeof THEMES.light) {
+  return { bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft, border: t.border, error: t.crimson, success: t.teal, raised: t.raised };
 }
-
-const styles = StyleSheet.create({
+let C = buildC(THEMES.light);
+function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   header: {
     flexDirection: 'row',
@@ -122,4 +71,55 @@ const styles = StyleSheet.create({
   },
   contactText: { fontSize: 14, fontWeight: '500', color: C.ink, flex: 1 },
 });
+}
 
+let styles = getStyles(C);
+
+const FAQS = [
+  { question: 'How do I save artifacts?', answer: 'Tap the bookmark icon on any artifact to save it to your collection.' },
+  { question: 'How do I mark favorites?', answer: 'Tap the heart icon to mark artifacts as your favorites.' },
+  { question: 'Can I listen to audio in multiple languages?', answer: 'Yes, each artifact has audio guides in English, Filipino, Japanese, Spanish, and Korean.' },
+  { question: 'How do I scan QR codes?', answer: 'Use the QR Scanner from the main menu to scan artifact QR codes.' },
+];
+
+export default function HelpSupport({ navigation }: any) {
+  const { theme } = useAppTheme(); C = buildC(theme); styles = getStyles(C);
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn} activeOpacity={0.7}>
+          <Text style={styles.backTxt}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.pageTitle}>Help & Support</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.titleDivider} />
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>FREQUENTLY ASKED QUESTIONS</Text>
+          {FAQS.map((faq, idx) => (
+            <View key={idx} style={[styles.faqCard, idx < FAQS.length - 1 && styles.faqBorder]}>
+              <Text style={styles.faqQuestion}>❓ {faq.question}</Text>
+              <Text style={styles.faqAnswer}>{faq.answer}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.contactSection}>
+          <Text style={styles.sectionLabel}>CONTACT US</Text>
+          <View style={styles.contactCard}>
+            <View style={styles.contactRow}>
+              <Ionicons name="mail" size={20} color={C.gold} />
+              <Text style={styles.contactText}>support@etorismo.com</Text>
+            </View>
+            <View style={styles.contactRow}>
+              <Ionicons name="call" size={20} color={C.gold} />
+              <Text style={styles.contactText}>+1 (555) 123-4567</Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

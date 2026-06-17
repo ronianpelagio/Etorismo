@@ -44,7 +44,14 @@ const DEFAULT_VOICE = {
   ko: 'ko-KR-Standard-A',
 };
 
-// Map language to database column (REMOVED - now using artifact_translations table)
+// Map language to database language_code (used in artifact_translations table)
+const COLUMN_MAP = {
+  en: 'en',
+  fil: 'fil',
+  ja: 'ja',
+  es: 'es',
+  ko: 'ko',
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TEXT SANITIZATION FUNCTION FOR DESCRIPTIONS
@@ -289,6 +296,13 @@ app.post('/generate-audio', async (req, res) => {
     }
 
     const selectedVoice = voiceName || voice || DEFAULT_VOICE[lang];
+    const langCode = COLUMN_MAP[lang];
+    
+    if (!langCode) {
+      return res.status(400).json({
+        error: `No column mapping for language: ${lang}`
+      });
+    }
 
     // Generate unique filename with sanitized text hash
     const textHash = require('crypto').createHash('md5').update(cleanText.substring(0, 100)).digest('hex').substring(0, 8);
@@ -345,16 +359,116 @@ app.post('/generate-audio', async (req, res) => {
 
     const audioUrl = publicData.publicUrl;
 
-    // Upsert audio URL into artifact_translations
-    const { error: dbError } = await supabase
+    // Save URL to artifact_translations table
+    console.log(`Looking for existing translation: artifact_id=${artifactId}, language_code=${langCode}`);
+    
+    // First, verify artifact exists
+    const { data: artifactCheck, error: artifactError } = await supabase
+      .from('artifacts')
+      .select('id')
+      .eq('id', artifactId)
+      .single();
+    
+    if (artifactError || !artifactCheck) {
+      throw new Error(`Artifact not found: ${artifactId}. Error: ${artifactError?.message}`);
+    }
+    
+    const { data: existingTx, error: selectError } = await supabase
       .from('artifact_translations')
-      .upsert(
-        { artifact_id: artifactId, language_code: lang, audio_url: audioUrl, name: '' },
-        { onConflict: 'artifact_id,language_code', ignoreDuplicates: false }
-      );
+      .select('id, name, description')
+      .eq('artifact_id', artifactId)
+      .eq('language_code', langCode)
+      .maybeSingle();
+
+    if (selectError) {
+      console.error('Error selecting existing translation:', selectError);
+      throw selectError;
+    }
+
+    let dbError;
+    if (existingTx) {
+      console.log(`Updating existing translation ${existingTx.id} with audio_url`);
+      ({ error: dbError } = await supabase
+        .from('artifact_translations')
+        .update({ audio_url: audioUrl })
+        .eq('id', existingTx.id));
+      console.log('Update result:', { error: dbError });
+    } else {
+      console.log('Creating new translation with audio_url');
+      ({ error: dbError } = await supabase
+        .from('artifact_translations')
+        .insert({ 
+          artifact_id: artifactId, 
+          language_code: langCode, 
+          name: '', 
+          description: cleanText, 
+          audio_url: audioUrl 
+        }));
+      console.log('Insert result:', { error: dbError });
+    }
 
     if (dbError) {
+      console.error('Database error saving audio_url:', dbError);
       throw dbError;
+    }
+
+    // Verify the audio_url was saved
+    const { data: verification, error: verifyError } = await supabase
+      .from('artifact_translations')
+      .select('id, audio_url')
+      .eq('artifact_id', artifactId)
+      .eq('language_code', langCode)
+      .single();
+    
+    if (verifyError || !verification?.audio_url) {
+      console.log('Direct save failed, attempting fallback: fetch from bucket and save');
+      
+      // Fallback: List audio files from bucket for this artifact
+      const { data: bucketFiles, error: listError } = await supabase.storage
+        .from('artifacts-audio')
+        .list('', { 
+          search: `${artifactId}_${lang}`,
+          limit: 10,
+          sortBy: { column: 'created_at', order: 'desc' }
+        });
+        
+      if (listError || !bucketFiles?.length) {
+        throw new Error(`No audio files found in bucket for artifact ${artifactId}, language ${lang}`);
+      }
+      
+      // Get the most recent audio file
+      const audioFile = bucketFiles[0];
+      const { data: bucketUrl } = supabase.storage
+        .from('artifacts-audio')
+        .getPublicUrl(audioFile.name);
+      
+      // Try to save to database again with bucket URL
+      let fallbackError;
+      if (existingTx) {
+        ({ error: fallbackError } = await supabase
+          .from('artifact_translations')
+          .update({ audio_url: bucketUrl.publicUrl })
+          .eq('id', existingTx.id));
+      } else {
+        ({ error: fallbackError } = await supabase
+          .from('artifact_translations')
+          .insert({ 
+            artifact_id: artifactId, 
+            language_code: langCode, 
+            name: '', 
+            description: cleanText, 
+            audio_url: bucketUrl.publicUrl 
+          }));
+      }
+      
+      if (fallbackError) {
+        throw new Error(`Fallback save failed: ${fallbackError.message}`);
+      }
+      
+      console.log('✅ Fallback successful - Audio URL saved via bucket lookup');
+      audioUrl = bucketUrl.publicUrl;
+    } else {
+      console.log('✅ Audio URL successfully saved and verified:', verification.audio_url);
     }
 
     // Delete temp file
@@ -488,6 +602,89 @@ app.post('/generate-all-audio', async (req, res) => {
     
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Sync audio from bucket to database for an artifact
+app.post('/sync-audio-from-bucket', async (req, res) => {
+  try {
+    const { artifactId } = req.body;
+    
+    if (!artifactId) {
+      return res.status(400).json({ error: 'artifactId is required' });
+    }
+    
+    // List all audio files for this artifact
+    const { data: bucketFiles, error: listError } = await supabase.storage
+      .from('artifacts-audio')
+      .list('', { 
+        search: artifactId,
+        limit: 50
+      });
+      
+    if (listError) {
+      throw listError;
+    }
+    
+    const synced = [];
+    const errors = [];
+    
+    for (const file of bucketFiles || []) {
+      // Extract language from filename (format: artifactId_lang_hash_timestamp.mp3)
+      const match = file.name.match(new RegExp(`${artifactId}_(\\w+)_`));
+      if (!match) continue;
+      
+      const lang = match[1];
+      const langCode = COLUMN_MAP[lang];
+      if (!langCode) continue;
+      
+      const { data: publicUrl } = supabase.storage
+        .from('artifacts-audio')
+        .getPublicUrl(file.name);
+      
+      // Check if translation exists
+      const { data: existingTx } = await supabase
+        .from('artifact_translations')
+        .select('id')
+        .eq('artifact_id', artifactId)
+        .eq('language_code', langCode)
+        .maybeSingle();
+      
+      let dbError;
+      if (existingTx) {
+        ({ error: dbError } = await supabase
+          .from('artifact_translations')
+          .update({ audio_url: publicUrl.publicUrl })
+          .eq('id', existingTx.id));
+      } else {
+        ({ error: dbError } = await supabase
+          .from('artifact_translations')
+          .insert({ 
+            artifact_id: artifactId, 
+            language_code: langCode, 
+            name: '', 
+            description: '', 
+            audio_url: publicUrl.publicUrl 
+          }));
+      }
+      
+      if (dbError) {
+        errors.push({ language: lang, error: dbError.message });
+      } else {
+        synced.push({ language: lang, audioUrl: publicUrl.publicUrl });
+      }
+    }
+    
+    res.json({
+      success: true,
+      synced,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `Synced ${synced.length} audio files${errors.length > 0 ? `, ${errors.length} failed` : ''}`
+    });
+    
+  } catch (err) {
+    console.error('Sync error:', err);
     res.status(500).json({ error: err.message });
   }
 });

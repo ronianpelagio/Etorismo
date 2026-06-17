@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,296 +18,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 import { STORAGE_KEYS, getStringArray } from '../../utils/storage';
+import { useAppTheme } from '../../context/ThemeContext';
+import { THEMES } from '../../constants/themes';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─── Design tokens ──────────────────────────────────────────────────────────────
-const C = {
-  bg:       '#F7F4EF',
-  surface:  '#FFFFFF',
-  ink:      '#1A1612',
-  inkMid:   '#6B6459',
-  inkLight: '#A89F96',
-  gold:     '#C9A84C',
-  goldSoft: '#F5EDD8',
-  border:   '#EAE4DA',
-  error:    '#C0392B',
-  success:  '#2ECC71',
-};
-
-type Artifact = {
-  id: string;
-  name: string;
-  category: string;
-  qr_code: string;
-  scanned_artifacts: string[];
-  qr_value: string;
-  created_at: string;
-  description?: string;
-  description_en?: string;
-  image_url?: string;
-  audio_en?: string;
-  audio_fil?: string;
-  audio_ja?: string;
-  audio_es?: string;
-  audio_ko?: string;
-};
-
-const CATEGORY_IMAGES: Record<string, string> = {
-  'Vestments':          'https://images.unsplash.com/photo-1582552938356-8b6b14c0e1ee?w=600',
-  'Sacred Vessels':     'https://images.unsplash.com/photo-1602351447937-7457d2e0ffc3?w=600',
-  'Liturgical Books':   'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600',
-  'Devotional Objects': 'https://images.unsplash.com/photo-1566505237780-6bf6d4c1b84e?w=600',
-  'Altar Furnishings':  'https://images.unsplash.com/photo-1601940462811-2c893df9477c?w=600',
-  'Sacramentals':       'https://images.unsplash.com/photo-1580137189272-c9379f8864fd?w=600',
-  'Musical Instruments': 'https://images.unsplash.com/photo-1510915361-a1da77b45a6f?w=600',
-  'Architectural and Decorative Elements': 'https://images.unsplash.com/photo-1595359910253-6c0e6b8a4440?w=600',
-};
-
-// ─── Artifact Detail Modal ─────────────────────────────────────────────────────
-function ArtifactDetailModal({
-  artifact, onClose,
-}: { artifact: Artifact | null; onClose: () => void }) {
-  const fadeAnim  = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.92)).current;
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'fil' | 'ja' | 'es' | 'ko'>('en');
-  const playerRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (artifact) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(scaleAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [artifact, fadeAnim, scaleAnim]);
-
-  async function playAudio(lang: string) {
-    try {
-      if (!artifact) return;
-      const langKey = `audio_${lang}` as keyof Artifact;
-      const audioUrl = artifact[langKey] as string | undefined;
-      
-      if (!audioUrl) return;
-
-      await setAudioModeAsync({});
-      
-      if (playerRef.current) {
-        await playerRef.current.release();
-      }
-
-      playerRef.current = await createAudioPlayer(audioUrl);
-      await playerRef.current.play();
-    } catch (error) {
-      console.error('Audio playback error:', error);
-    }
-  }
-
-  const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 0.92, duration: 200, useNativeDriver: true }),
-    ]).start(() => onClose());
+function buildC(t: typeof THEMES.light) {
+  return {
+    bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft, border: t.border, error: t.crimson, success: t.teal,
   };
-
-  if (!artifact) return null;
-
-  const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category] ?? 'https://via.placeholder.com/600?text=Artifact';
-
-  return (
-    <Modal visible={!!artifact} transparent animationType="none">
-      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={handleClose} />
-        <Animated.View style={[styles.modal, { transform: [{ scale: scaleAnim }] }]}>
-          <TouchableOpacity style={styles.closeBtn} onPress={handleClose} activeOpacity={0.7}>
-            <View style={styles.closeBtnCircle}>
-              <Text style={styles.closeBtnX}>✕</Text>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.imageSection}>
-            <Image source={{ uri: imgUrl }} style={styles.image} />
-            <View style={styles.categoryPill}>
-              <Text style={styles.categoryPillText}>{artifact.category}</Text>
-            </View>
-          </View>
-
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.goldAccent} />
-            <Text style={styles.name}>{artifact.name}</Text>
-
-            {artifact.description_en && (
-              <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Description</Text>
-                <Text style={styles.description}>{artifact.description_en}</Text>
-              </View>
-            )}
-
-            {/* Audio Section */}
-            {(artifact.audio_en || artifact.audio_fil || artifact.audio_ja || artifact.audio_es || artifact.audio_ko) && (
-              <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Audio Guide</Text>
-                <View style={styles.audioGrid}>
-                  {artifact.audio_en && (
-                    <TouchableOpacity 
-                      style={[styles.languageCard, selectedLanguage === 'en' && styles.languageCardActive]}
-                      onPress={() => { setSelectedLanguage('en'); playAudio('en'); }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.languageText, selectedLanguage === 'en' && styles.languageTextActive]}>🇺🇸 English</Text>
-                    </TouchableOpacity>
-                  )}
-                  {artifact.audio_fil && (
-                    <TouchableOpacity 
-                      style={[styles.languageCard, selectedLanguage === 'fil' && styles.languageCardActive]}
-                      onPress={() => { setSelectedLanguage('fil'); playAudio('fil'); }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.languageText, selectedLanguage === 'fil' && styles.languageTextActive]}>🇵🇭 Filipino</Text>
-                    </TouchableOpacity>
-                  )}
-                  {artifact.audio_ja && (
-                    <TouchableOpacity 
-                      style={[styles.languageCard, selectedLanguage === 'ja' && styles.languageCardActive]}
-                      onPress={() => { setSelectedLanguage('ja'); playAudio('ja'); }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.languageText, selectedLanguage === 'ja' && styles.languageTextActive]}>🇯🇵 日本語</Text>
-                    </TouchableOpacity>
-                  )}
-                  {artifact.audio_es && (
-                    <TouchableOpacity 
-                      style={[styles.languageCard, selectedLanguage === 'es' && styles.languageCardActive]}
-                      onPress={() => { setSelectedLanguage('es'); playAudio('es'); }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.languageText, selectedLanguage === 'es' && styles.languageTextActive]}>🇪🇸 Español</Text>
-                    </TouchableOpacity>
-                  )}
-                  {artifact.audio_ko && (
-                    <TouchableOpacity 
-                      style={[styles.languageCard, selectedLanguage === 'ko' && styles.languageCardActive]}
-                      onPress={() => { setSelectedLanguage('ko'); playAudio('ko'); }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.languageText, selectedLanguage === 'ko' && styles.languageTextActive]}>🇰🇷 한국어</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            )}
-
-            <TouchableOpacity style={styles.doneBtn} onPress={handleClose} activeOpacity={0.8}>
-              <Text style={styles.doneBtnText}>Done</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </Animated.View>
-      </Animated.View>
-    </Modal>
-  );
 }
-
-// ─── Main Saved Artifacts Screen ─────────────────────────────────────────────────
-export default function SavedArtifacts({ onBack }: { onBack: () => void }) {
-  const [allArtifacts, setAllArtifacts] = useState<Artifact[]>([]);
-  const [savedArtifactIds, setSavedArtifactIds] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
-
-  useEffect(() => {
-    loadSavedArtifacts();
-  }, []);
-
-  async function loadSavedArtifacts() {
-    setLoading(true);
-    try {
-      // Get saved artifact IDs from storage
-      const saved = await getStringArray(STORAGE_KEYS.savedArtifacts);
-      setSavedArtifactIds(saved);
-
-      if (saved.length === 0) {
-        setAllArtifacts([]);
-        return;
-      }
-
-      // Fetch artifacts from Supabase
-      const { data, error } = await supabase
-        .from('artifacts')
-        .select('*')
-        .in('id', saved);
-
-      if (error) {
-        console.error('Error fetching saved artifacts:', error);
-        return;
-      }
-
-      setAllArtifacts(data || []);
-    } catch (error) {
-      console.error('Error loading saved artifacts:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={28} color={C.ink} />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.eyebrow}>My Collection</Text>
-          <Text style={styles.title}>Saved Artifacts</Text>
-          <View style={styles.goldLine} />
-        </View>
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={C.gold} />
-        </View>
-      ) : allArtifacts.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="bookmark-outline" size={48} color={C.inkLight} />
-          <Text style={styles.emptyText}>No saved artifacts yet</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={allArtifacts}
-          renderItem={({ item }) => (
-            <TouchableOpacity 
-              style={styles.artifactCardUnlocked}
-              onPress={() => setSelectedArtifact(item)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.unlockedImageWrapper}>
-                <Image source={{ uri: item.image_url || CATEGORY_IMAGES[item.category] }} style={styles.artifactImage} />
-              </View>
-              <View style={styles.artifactInfoUnlocked}>
-                <View>
-                  <Text style={styles.artifactNameUnlocked}>{item.name}</Text>
-                  <Text style={styles.artifactCategoryUnlocked}>{item.category}</Text>
-                </View>
-                <View style={styles.viewDetailsRow}>
-                  <Text style={styles.viewDetailsText}>View Details</Text>
-                  <Ionicons name="chevron-forward" size={14} color={C.gold} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.artifactsList}
-          scrollEnabled={true}
-        />
-      )}
-
-      <ArtifactDetailModal artifact={selectedArtifact} onClose={() => setSelectedArtifact(null)} />
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
+let C = buildC(THEMES.light);
+function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: C.bg,
@@ -565,3 +288,279 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
+}
+
+let styles = getStyles(C);
+
+type Artifact = {
+  id: string;
+  name: string;
+  category: string;
+  qr_code: string;
+  scanned_artifacts: string[];
+  qr_value: string;
+  created_at: string;
+  description?: string;
+  description_en?: string;
+  image_url?: string;
+  audio_en?: string;
+  audio_fil?: string;
+  audio_ja?: string;
+  audio_es?: string;
+  audio_ko?: string;
+};
+
+const CATEGORY_IMAGES: Record<string, string> = {
+  'Vestments':          'https://images.unsplash.com/photo-1582552938356-8b6b14c0e1ee?w=600',
+  'Sacred Vessels':     'https://images.unsplash.com/photo-1602351447937-7457d2e0ffc3?w=600',
+  'Liturgical Books':   'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600',
+  'Devotional Objects': 'https://images.unsplash.com/photo-1566505237780-6bf6d4c1b84e?w=600',
+  'Altar Furnishings':  'https://images.unsplash.com/photo-1601940462811-2c893df9477c?w=600',
+  'Sacramentals':       'https://images.unsplash.com/photo-1580137189272-c9379f8864fd?w=600',
+  'Musical Instruments': 'https://images.unsplash.com/photo-1510915361-a1da77b45a6f?w=600',
+  'Architectural and Decorative Elements': 'https://images.unsplash.com/photo-1595359910253-6c0e6b8a4440?w=600',
+};
+
+// ─── Artifact Detail Modal ─────────────────────────────────────────────────────
+function ArtifactDetailModal({
+  artifact, onClose,
+}: { artifact: Artifact | null; onClose: () => void }) {
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.92)).current;
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'fil' | 'ja' | 'es' | 'ko'>('en');
+  const playerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (artifact) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.timing(scaleAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [artifact, fadeAnim, scaleAnim]);
+
+  async function playAudio(lang: string) {
+    try {
+      if (!artifact) return;
+      const langKey = `audio_${lang}` as keyof Artifact;
+      const audioUrl = artifact[langKey] as string | undefined;
+      
+      if (!audioUrl) return;
+
+      await setAudioModeAsync({});
+      
+      if (playerRef.current) {
+        await playerRef.current.release();
+      }
+
+      playerRef.current = await createAudioPlayer(audioUrl);
+      await playerRef.current.play();
+    } catch (error) {
+      console.error('Audio playback error:', error);
+    }
+  }
+
+  const handleClose = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 0.92, duration: 200, useNativeDriver: true }),
+    ]).start(() => onClose());
+  };
+
+  if (!artifact) return null;
+
+  const imgUrl = artifact.image_url ?? CATEGORY_IMAGES[artifact.category] ?? 'https://via.placeholder.com/600?text=Artifact';
+
+  return (
+    <Modal visible={!!artifact} transparent animationType="none">
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={handleClose} />
+        <Animated.View style={[styles.modal, { transform: [{ scale: scaleAnim }] }]}>
+          <TouchableOpacity style={styles.closeBtn} onPress={handleClose} activeOpacity={0.7}>
+            <View style={styles.closeBtnCircle}>
+              <Text style={styles.closeBtnX}>✕</Text>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.imageSection}>
+            <Image source={{ uri: imgUrl }} style={styles.image} />
+            <View style={styles.categoryPill}>
+              <Text style={styles.categoryPillText}>{artifact.category}</Text>
+            </View>
+          </View>
+
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            <View style={styles.goldAccent} />
+            <Text style={styles.name}>{artifact.name}</Text>
+
+            {artifact.description_en && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Description</Text>
+                <Text style={styles.description}>{artifact.description_en}</Text>
+              </View>
+            )}
+
+            {/* Audio Section */}
+            {(artifact.audio_en || artifact.audio_fil || artifact.audio_ja || artifact.audio_es || artifact.audio_ko) && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Audio Guide</Text>
+                <View style={styles.audioGrid}>
+                  {artifact.audio_en && (
+                    <TouchableOpacity 
+                      style={[styles.languageCard, selectedLanguage === 'en' && styles.languageCardActive]}
+                      onPress={() => { setSelectedLanguage('en'); playAudio('en'); }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.languageText, selectedLanguage === 'en' && styles.languageTextActive]}>🇺🇸 English</Text>
+                    </TouchableOpacity>
+                  )}
+                  {artifact.audio_fil && (
+                    <TouchableOpacity 
+                      style={[styles.languageCard, selectedLanguage === 'fil' && styles.languageCardActive]}
+                      onPress={() => { setSelectedLanguage('fil'); playAudio('fil'); }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.languageText, selectedLanguage === 'fil' && styles.languageTextActive]}>🇵🇭 Filipino</Text>
+                    </TouchableOpacity>
+                  )}
+                  {artifact.audio_ja && (
+                    <TouchableOpacity 
+                      style={[styles.languageCard, selectedLanguage === 'ja' && styles.languageCardActive]}
+                      onPress={() => { setSelectedLanguage('ja'); playAudio('ja'); }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.languageText, selectedLanguage === 'ja' && styles.languageTextActive]}>🇯🇵 日本語</Text>
+                    </TouchableOpacity>
+                  )}
+                  {artifact.audio_es && (
+                    <TouchableOpacity 
+                      style={[styles.languageCard, selectedLanguage === 'es' && styles.languageCardActive]}
+                      onPress={() => { setSelectedLanguage('es'); playAudio('es'); }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.languageText, selectedLanguage === 'es' && styles.languageTextActive]}>🇪🇸 Español</Text>
+                    </TouchableOpacity>
+                  )}
+                  {artifact.audio_ko && (
+                    <TouchableOpacity 
+                      style={[styles.languageCard, selectedLanguage === 'ko' && styles.languageCardActive]}
+                      onPress={() => { setSelectedLanguage('ko'); playAudio('ko'); }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.languageText, selectedLanguage === 'ko' && styles.languageTextActive]}>🇰🇷 한국어</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.doneBtn} onPress={handleClose} activeOpacity={0.8}>
+              <Text style={styles.doneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
+}
+
+// ─── Main Saved Artifacts Screen ─────────────────────────────────────────────────
+export default function SavedArtifacts({ onBack }: { onBack: () => void }) {
+  const { theme } = useAppTheme(); C = buildC(theme); styles = getStyles(C);
+  const [allArtifacts, setAllArtifacts] = useState<Artifact[]>([]);
+  const [savedArtifactIds, setSavedArtifactIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
+
+  useEffect(() => {
+    loadSavedArtifacts();
+  }, []);
+
+  async function loadSavedArtifacts() {
+    setLoading(true);
+    try {
+      // Get saved artifact IDs from storage
+      const saved = await getStringArray(STORAGE_KEYS.savedArtifacts);
+      setSavedArtifactIds(saved);
+
+      if (saved.length === 0) {
+        setAllArtifacts([]);
+        return;
+      }
+
+      // Fetch artifacts from Supabase
+      const { data, error } = await supabase
+        .from('artifacts')
+        .select('*')
+        .in('id', saved);
+
+      if (error) {
+        console.error('Error fetching saved artifacts:', error);
+        return;
+      }
+
+      setAllArtifacts(data || []);
+    } catch (error) {
+      console.error('Error loading saved artifacts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={28} color={C.ink} />
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.eyebrow}>My Collection</Text>
+          <Text style={styles.title}>Saved Artifacts</Text>
+          <View style={styles.goldLine} />
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={C.gold} />
+        </View>
+      ) : allArtifacts.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="bookmark-outline" size={48} color={C.inkLight} />
+          <Text style={styles.emptyText}>No saved artifacts yet</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={allArtifacts}
+          renderItem={({ item }) => (
+            <TouchableOpacity 
+              style={styles.artifactCardUnlocked}
+              onPress={() => setSelectedArtifact(item)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.unlockedImageWrapper}>
+                <Image source={{ uri: item.image_url || CATEGORY_IMAGES[item.category] }} style={styles.artifactImage} />
+              </View>
+              <View style={styles.artifactInfoUnlocked}>
+                <View>
+                  <Text style={styles.artifactNameUnlocked}>{item.name}</Text>
+                  <Text style={styles.artifactCategoryUnlocked}>{item.category}</Text>
+                </View>
+                <View style={styles.viewDetailsRow}>
+                  <Text style={styles.viewDetailsText}>View Details</Text>
+                  <Ionicons name="chevron-forward" size={14} color={C.gold} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.artifactsList}
+          scrollEnabled={true}
+        />
+      )}
+
+      <ArtifactDetailModal artifact={selectedArtifact} onClose={() => setSelectedArtifact(null)} />
+    </SafeAreaView>
+  );
+}

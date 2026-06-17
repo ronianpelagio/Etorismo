@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,63 +8,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-const C = {
-  bg: '#F7F4EF',
-  surface: '#FFFFFF',
-  ink: '#1A1612',
-  inkMid: '#6B6459',
-  gold: '#C9A84C',
-  border: '#EAE4DA',
-};
-
-const LANGUAGES = [
-  { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'fil', name: 'Filipino', flag: '🇵🇭' },
-  { code: 'ja', name: '日本語', flag: '🇯🇵' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'ko', name: '한국어', flag: '🇰🇷' },
-];
-
-export default function Language({ navigation }: any) {
-  const [selected, setSelected] = useState('en');
-
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backTxt}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.pageTitle}>Language</Text>
-        <View style={{ width: 40 }} />
-      </View>
-      <View style={styles.titleDivider} />
-
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>SELECT LANGUAGE</Text>
-        <View style={styles.card}>
-          {LANGUAGES.map((lang, idx) => (
-            <TouchableOpacity
-              key={lang.code}
-              style={[styles.row, idx < LANGUAGES.length - 1 && styles.rowBorder]}
-              onPress={() => setSelected(lang.code)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.langInfo}>
-                <Text style={styles.langFlag}>{lang.flag}</Text>
-                <Text style={styles.langName}>{lang.name}</Text>
-              </View>
-              {selected === lang.code && (
-                <Ionicons name="checkmark" size={24} color={C.gold} />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    </SafeAreaView>
-  );
+import { useAppTheme } from '../../../context/ThemeContext';
+import { THEMES } from '../../../constants/themes';
+function buildC(t: typeof THEMES.light) {
+  return { bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft, border: t.border, error: t.crimson, success: t.teal, raised: t.raised };
 }
-
-const styles = StyleSheet.create({
+let C = buildC(THEMES.light);
+function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   header: {
     flexDirection: 'row',
@@ -122,4 +72,54 @@ const styles = StyleSheet.create({
     color: C.ink,
   },
 });
+}
 
+let styles = getStyles(C);
+
+const LANGUAGES = [
+  { code: 'en', name: 'English', flag: '🇺🇸' },
+  { code: 'fil', name: 'Filipino', flag: '🇵🇭' },
+  { code: 'ja', name: '日本語', flag: '🇯🇵' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'ko', name: '한국어', flag: '🇰🇷' },
+];
+
+export default function Language({ navigation }: any) {
+  const { theme } = useAppTheme(); C = buildC(theme); styles = getStyles(C);
+  const [selected, setSelected] = useState('en');
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn} activeOpacity={0.7}>
+          <Text style={styles.backTxt}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.pageTitle}>Language</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.titleDivider} />
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>SELECT LANGUAGE</Text>
+        <View style={styles.card}>
+          {LANGUAGES.map((lang, idx) => (
+            <TouchableOpacity
+              key={lang.code}
+              style={[styles.row, idx < LANGUAGES.length - 1 && styles.rowBorder]}
+              onPress={() => setSelected(lang.code)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.langInfo}>
+                <Text style={styles.langFlag}>{lang.flag}</Text>
+                <Text style={styles.langName}>{lang.name}</Text>
+              </View>
+              {selected === lang.code && (
+                <Ionicons name="checkmark" size={24} color={C.gold} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}

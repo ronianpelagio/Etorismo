@@ -13,21 +13,20 @@ import HelpSupport from '../screens/main/settings/HelpSupport';
 import Terms from '../screens/main/settings/Terms';
 import Privacy from '../screens/main/settings/Privacy';
 import SavedArtifacts from '../screens/main/SavedArtifacts';
-import FavoriteArtifacts from '../screens/main/FavoriteArtifacts';
+import CollectionPage from '../screens/main/CollectionPage';
 
 const Stack = createNativeStackNavigator();
 
-export default function SettingsStack() {
+export default function SettingsStack({ setNavbarVisible }: { setNavbarVisible?: (v: boolean) => void }) {
   return (
     <Stack.Navigator
       id="settings-stack"
       screenOptions={{ headerShown: false }}
       initialRouteName="ProfileRoot"
     >
-      <Stack.Screen
-        name="ProfileRoot"
-        component={Profile}
-      />
+      <Stack.Screen name="ProfileRoot">
+        {(props) => <Profile {...props} setNavbarVisible={setNavbarVisible} />}
+      </Stack.Screen>
 
       <Stack.Screen
         name="SettingsRoot"
@@ -57,9 +56,9 @@ export default function SettingsStack() {
       />
 
       <Stack.Screen
-        name="FavoriteArtifacts"
+        name="CollectionPage"
         children={(props) => (
-          <FavoriteArtifacts
+          <CollectionPage
             {...props}
             onBack={() => props.navigation.goBack()}
           />

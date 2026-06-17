@@ -1,16 +1,15 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-const C = {
-  bg: '#F7F4EF',
-  surface: '#FFFFFF',
-  ink: '#1A1612',
-  inkMid: '#6B6459',
-  gold: '#C9A84C',
-  border: '#EAE4DA',
-};
+import { useAppTheme } from '../../../context/ThemeContext';
+import { THEMES } from '../../../constants/themes';
+function buildC(t: typeof THEMES.light) {
+  return { bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft, border: t.border, error: t.crimson, success: t.teal, raised: t.raised };
+}
+let C = buildC(THEMES.light);
+let styles: ReturnType<typeof getStyles>;
 
 export default function SettingPlaceholder({
   title,
@@ -19,6 +18,7 @@ export default function SettingPlaceholder({
   title: string;
   onBack?: () => void;
 }) {
+  const { theme } = useAppTheme(); C = buildC(theme); styles = getStyles(C);
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
@@ -41,7 +41,7 @@ export default function SettingPlaceholder({
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
 
   header: {
@@ -106,4 +106,4 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
-
+}

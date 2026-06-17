@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   View,
   Text,
@@ -13,268 +13,25 @@ import { CommonActions, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../services/supabase';
+import { useAppTheme } from '../../context/ThemeContext';
+import { THEMES } from '../../constants/themes';
 
 // ─── Design tokens (matching Profile) ─────────────────────────────────────────────
-const C = {
-  backgroundLight: '#FFFCF8',
-  surfaceLight: '#FFFFFF',
-  textPrimary: '#1E1B17',
-  textSecondary: '#5C564B',
-  textMuted: '#9B948A',
-  accent: '#C7A84B',
-  accentWarm: '#D4B86A',
-  accentLight: '#FDF8F0',
-  success: '#2ECC71',
-  crimson: '#E74C3C',
-  borderSubtle: '#EAE5DF',
-  divider: '#F0EDE8',
-  hoverLight: '#F5F2ED',
-  shadowLight: '#1E1B17',
-  overlay: 'rgba(0,0,0,0.03)',
-  
-  bg: '#FFFCF8',
-  surface: '#FFFFFF',
-  ink: '#1E1B17',
-  inkMid: '#5C564B',
-  inkLight: '#9B948A',
-  gold: '#C7A84B',
-  goldSoft: '#FDF8F0',
-  border: '#EAE5DF',
-  danger: '#E74C3C',
-  dangerBg: '#FEF5F4',
-};
-
-type RowProps = {
-  icon: string;
-  label: string;
-  value?: string;
-  onPress?: () => void;
-  danger?: boolean;
-  isLast?: boolean;
-};
-
-function Row({ icon, label, value, onPress, danger, isLast }: RowProps) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.row, isLast && styles.rowLast]}
-      activeOpacity={0.7}
-    >
-      <View style={styles.rowLeft}>
-        <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
-          <Ionicons name={icon as any} size={18} color={danger ? C.danger : C.gold} />
-        </View>
-        <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
-      </View>
-      <View style={styles.rowRight}>
-        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
-        <Ionicons 
-          name="chevron-forward" 
-          size={16} 
-          color={danger ? C.danger : C.textMuted} 
-        />
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <View style={styles.sectionLine} />
-      </View>
-      <View style={styles.card}>{children}</View>
-    </View>
-  );
-}
-
-export default function Settings({ navigation, onClose }: any) {
-  const rootNavigation = useNavigation();
-
-  const nav = (screen: string) => navigation?.navigate(screen);
-
-  const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await supabase.auth.signOut();
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            let root = rootNavigation;
-            while (root.getParent()) {
-              root = root.getParent();
-            }
-
-            root.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'SignIn' }],
-              })
-            );
-          } catch (error) {
-            console.error('Logout error:', error);
-            rootNavigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'SignIn' }],
-              })
-            );
-          }
-        },
-      },
-    ]);
+function buildC(t: typeof THEMES.light) {
+  return {
+    backgroundLight: t.bg, surfaceLight: t.surface,
+    textPrimary: t.ink, textSecondary: t.inkMid, textMuted: t.inkDim,
+    accent: t.gold, accentLight: t.goldSoft,
+    success: t.teal, crimson: t.crimson,
+    borderSubtle: t.border, hoverLight: t.overlay, shadowLight: t.ink,
+    overlay: t.goldSoft, bg: t.bg, surface: t.surface,
+    ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim,
+    gold: t.gold, goldSoft: t.goldSoft, border: t.border,
+    danger: t.crimson, dangerBg: t.goldSoft,
   };
-
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        
-        {/* ── Hero Header ── */}
-        <ImageBackground
-          source={require('../../assets/Signin.jpg')}
-          style={styles.heroBg}
-          imageStyle={styles.heroBgImage}
-        >
-          <LinearGradient
-            colors={[
-              'rgba(255, 252, 248, 0.92)',
-              'rgba(255, 252, 248, 0.85)',
-            ]}
-            style={StyleSheet.absoluteFillObject}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          />
-          
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => {
-                if (onClose) {
-                  onClose();
-                  return;
-                }
-                navigation?.goBack();
-              }}
-              style={styles.backBtn}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={22} color={C.textPrimary} />
-            </TouchableOpacity>
-            <Text style={styles.pageTitle}>Settings</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          
-          <View style={styles.heroContent}>
-            <Text style={styles.heroSubtitle}>Preferences & Configuration</Text>
-            <Text style={styles.heroTitle}>Customize{'\n'}Your Experience</Text>
-            <View style={styles.heroRule}>
-              <View style={styles.heroRuleLine} />
-              <Text style={styles.heroRuleDot}>◆</Text>
-              <View style={styles.heroRuleLine} />
-            </View>
-          </View>
-        </ImageBackground>
-
-        {/* Menu Section */}
-        <Section title="MENU">
-          <Row 
-            icon="person-outline"
-            label="Personal Information" 
-            onPress={() => nav('PersonalInfo')} 
-          />
-          <Row 
-            icon="shield-outline"
-            label="Password & Security" 
-            onPress={() => nav('PasswordSecurity')} 
-          />
-          <Row 
-            icon="mail-outline"
-            label="Email Preferences" 
-            onPress={() => nav('EmailPrefs')} 
-            isLast
-          />
-        </Section>
-
-        {/* Preferences Section */}
-        <Section title="PREFERENCES">
-          <Row 
-            icon="language-outline"
-            label="Language" 
-            value="English"  
-            onPress={() => nav('Language')} 
-          />
-          <Row 
-            icon="notifications-outline"
-            label="Push Notifications" 
-            value="On"      
-            onPress={() => nav('Notifications')} 
-          />
-          <Row 
-            icon="color-palette-outline"
-            label="Theme"             
-            value="Light"    
-            onPress={() => nav('Theme')} 
-            isLast
-          />
-        </Section>
-
-        {/* Support Section */}
-        <Section title="SUPPORT">
-          <Row 
-            icon="help-circle-outline"
-            label="Help & Support"    
-            onPress={() => nav('HelpSupport')} 
-          />
-          <Row 
-            icon="document-text-outline"
-            label="Terms & Conditions" 
-            onPress={() => nav('Terms')} 
-          />
-          <Row 
-            icon="lock-closed-outline"
-            label="Privacy Policy"    
-            onPress={() => nav('Privacy')} 
-            isLast
-          />
-        </Section>
-
-        {/* About Section */}
-        <Section title="ABOUT">
-          <Row 
-            icon="information-circle-outline"
-            label="App Version" 
-            value="2.0.0"    
-            onPress={() => {}} 
-          />
-          <Row 
-            icon="logo-outline"
-            label="Sacred Heritage" 
-            value="© 2026"    
-            onPress={() => {}} 
-            isLast
-          />
-        </Section>
-
-        {/* Logout Button */}
-        <View style={styles.logoutSection}>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} activeOpacity={0.8}>
-            <Ionicons name="log-out-outline" size={20} color={C.danger} />
-            <Text style={styles.logoutTxt}>Sign Out</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.version}>Heritage Collection · v2.0.0</Text>
-      </ScrollView>
-    </SafeAreaView>
-  );
 }
-
-const styles = StyleSheet.create({
+let C = buildC(THEMES.light);
+function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.backgroundLight },
 
   // ── Hero ──
@@ -462,3 +219,238 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
 });
+}
+
+let styles = getStyles(C);
+
+type RowProps = {
+  icon: string;
+  label: string;
+  value?: string;
+  onPress?: () => void;
+  danger?: boolean;
+  isLast?: boolean;
+};
+
+function Row({ icon, label, value, onPress, danger, isLast }: RowProps) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.row, isLast && styles.rowLast]}
+      activeOpacity={0.7}
+    >
+      <View style={styles.rowLeft}>
+        <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
+          <Ionicons name={icon as any} size={18} color={danger ? C.danger : C.gold} />
+        </View>
+        <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
+      </View>
+      <View style={styles.rowRight}>
+        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
+        <Ionicons 
+          name="chevron-forward" 
+          size={16} 
+          color={danger ? C.danger : C.textMuted} 
+        />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <View style={styles.sectionLine} />
+      </View>
+      <View style={styles.card}>{children}</View>
+    </View>
+  );
+}
+
+export default function Settings({ navigation, onClose }: any) {
+  const { theme } = useAppTheme(); C = buildC(theme);
+  styles = getStyles(C);
+  const rootNavigation = useNavigation();
+
+  const nav = (screen: string) => navigation?.navigate(screen);
+
+  const handleLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await supabase.auth.signOut();
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            let root = rootNavigation;
+            while (root.getParent()) {
+              root = root.getParent();
+            }
+
+            root.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'SignIn' }],
+              })
+            );
+          } catch (error) {
+            console.error('Logout error:', error);
+            rootNavigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'SignIn' }],
+              })
+            );
+          }
+        },
+      },
+    ]);
+  };
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        
+        {/* ── Hero Header ── */}
+        <ImageBackground
+          source={require('../../assets/Signin.jpg')}
+          style={styles.heroBg}
+          imageStyle={styles.heroBgImage}
+        >
+          <LinearGradient
+            colors={[
+              'rgba(255, 252, 248, 0.92)',
+              'rgba(255, 252, 248, 0.85)',
+            ]}
+            style={StyleSheet.absoluteFillObject}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
+          
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => {
+                if (onClose) {
+                  onClose();
+                  return;
+                }
+                navigation?.goBack();
+              }}
+              style={styles.backBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-back" size={22} color={C.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.pageTitle}>Settings</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          
+          <View style={styles.heroContent}>
+            <Text style={styles.heroSubtitle}>Preferences & Configuration</Text>
+            <Text style={styles.heroTitle}>Customize{'\n'}Your Experience</Text>
+            <View style={styles.heroRule}>
+              <View style={styles.heroRuleLine} />
+              <Text style={styles.heroRuleDot}>◆</Text>
+              <View style={styles.heroRuleLine} />
+            </View>
+          </View>
+        </ImageBackground>
+
+        {/* Menu Section */}
+        <Section title="MENU">
+          <Row 
+            icon="person-outline"
+            label="Personal Information" 
+            onPress={() => nav('PersonalInfo')} 
+          />
+          <Row 
+            icon="shield-outline"
+            label="Password & Security" 
+            onPress={() => nav('PasswordSecurity')} 
+          />
+          <Row 
+            icon="mail-outline"
+            label="Email Preferences" 
+            onPress={() => nav('EmailPrefs')} 
+            isLast
+          />
+        </Section>
+
+        {/* Preferences Section */}
+        <Section title="PREFERENCES">
+          <Row 
+            icon="language-outline"
+            label="Language" 
+            value="English"  
+            onPress={() => nav('Language')} 
+          />
+          <Row 
+            icon="notifications-outline"
+            label="Push Notifications" 
+            value="On"      
+            onPress={() => nav('Notifications')} 
+          />
+          <Row 
+            icon="color-palette-outline"
+            label="Theme"             
+            value="Light"    
+            onPress={() => nav('Theme')} 
+            isLast
+          />
+        </Section>
+
+        {/* Support Section */}
+        <Section title="SUPPORT">
+          <Row 
+            icon="help-circle-outline"
+            label="Help & Support"    
+            onPress={() => nav('HelpSupport')} 
+          />
+          <Row 
+            icon="document-text-outline"
+            label="Terms & Conditions" 
+            onPress={() => nav('Terms')} 
+          />
+          <Row 
+            icon="lock-closed-outline"
+            label="Privacy Policy"    
+            onPress={() => nav('Privacy')} 
+            isLast
+          />
+        </Section>
+
+        {/* About Section */}
+        <Section title="ABOUT">
+          <Row 
+            icon="information-circle-outline"
+            label="App Version" 
+            value="2.0.0"    
+            onPress={() => {}} 
+          />
+          <Row 
+            icon="logo-outline"
+            label="Sacred Heritage" 
+            value="© 2026"    
+            onPress={() => {}} 
+            isLast
+          />
+        </Section>
+
+        {/* Logout Button */}
+        <View style={styles.logoutSection}>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} activeOpacity={0.8}>
+            <Ionicons name="log-out-outline" size={20} color={C.danger} />
+            <Text style={styles.logoutTxt}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.version}>Heritage Collection · v2.0.0</Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

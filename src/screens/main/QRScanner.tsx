@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, Animated, Modal, ScrollView, Image,
@@ -8,42 +8,376 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
+import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase';
-import CollectionPage from './CollectionPage';
 import { STORAGE_KEYS, toggleInStringArray, getStringArray } from '../../utils/storage';
+import { useAppTheme } from '../../context/ThemeContext';
+import { THEMES } from '../../constants/themes';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─── SACRED HERITAGE THEME TOKENS ──────────────────────────────────────────────
-const C = {
-  // Warm, creamy background (from HomeScreen)
-  bg:       '#FFFCF8',  // Creamy off-white
-  surface:  '#FFFFFF',
+function buildC(t: typeof THEMES.light) {
+  return {
+    bg: t.bg, surface: t.surface,
+    ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim,
+    gold: t.gold, goldWarm: t.goldBright, goldSoft: t.goldSoft,
+    goldLight: t.goldGlow,
+    border: t.border, borderGold: t.borderGold,
+    error: t.crimson, success: t.teal,
+    overlay: 'rgba(30,27,23,0.75)',
+    vignette: 'rgba(30,27,23,0.35)',
+  };
+}
+let C = buildC(THEMES.light);
+let sf = getSfStyles(C);
+let ams = getAmsStyles(C);
+function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: C.bg,
+    padding: 32,
+  },
+
+  // ── Header with Collection Icon ──
+  headerSafe: {
+    backgroundColor: C.bg,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  eyebrow: {
+    fontSize: 9.5,
+    letterSpacing: 3.5,
+    color: C.gold,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: C.ink,
+    letterSpacing: -0.8,
+  },
+  goldLine: {
+    width: 40,
+    height: 3,
+    backgroundColor: C.gold,
+    borderRadius: 2,
+    marginTop: 8,
+  },
   
-  // Text colors (warm neutrals)
-  ink:      '#1E1B17',  // Deep warm black
-  inkMid:   '#5C564B',  // Warm taupe
-  inkLight: '#9B948A',  // Soft warm gray
-  
-  // Brand accent - Gold
-  gold:     '#C7A84B',
-  goldWarm: '#D4B86A',
-  goldSoft: '#FDF8F0',
-  goldLight: 'rgba(199,168,75,0.1)',
-  
-  // Borders and dividers
-  border:   '#EAE5DF',
-  borderGold: 'rgba(199,168,75,0.3)',
-  
-  // Status colors
-  error:    '#E74C3C',  // Crimson (from HomeScreen)
-  success:  '#2ECC71',  // Teal (from HomeScreen)
-  
-  // Overlays
-  overlay:  'rgba(30,27,23,0.75)', // Ink color as overlay
-  vignette: 'rgba(30,27,23,0.35)',
-};
+  // Collection Icon Button
+  collectionIconBtn: {
+    marginTop: 4,
+  },
+  collectionIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: C.goldSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: C.borderGold,
+    position: 'relative',
+  },
+  collectionBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: C.gold,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: C.bg,
+  },
+  collectionBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: C.ink,
+  },
+
+  // ── Camera Container ──
+  cameraContainer: {
+    height: SCREEN_HEIGHT * 0.45,
+    marginHorizontal: 20,
+    marginVertical: 12,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    shadowColor: C.ink,
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  cameraWrap: {
+    flex: 1,
+    position: 'relative',
+    backgroundColor: '#000',
+  },
+  vignetteTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '20%',
+    backgroundColor: C.vignette,
+  },
+  vignetteBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '20%',
+    backgroundColor: C.vignette,
+  },
+  vignetteLeft: {
+    position: 'absolute',
+    top: '20%',
+    left: 0,
+    width: '12%',
+    height: '60%',
+    backgroundColor: C.vignette,
+  },
+  vignetteRight: {
+    position: 'absolute',
+    top: '20%',
+    right: 0,
+    width: '12%',
+    height: '60%',
+    backgroundColor: C.vignette,
+  },
+  frameContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scanHintOverlay: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  scanHintText: {
+    backgroundColor: 'rgba(30,27,23,0.8)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    fontSize: 12,
+    color: C.gold,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+  },
+
+  // ── Torch Button ──
+  torchBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(30,27,23,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: C.borderGold,
+  },
+  torchBtnActive: {
+    backgroundColor: C.gold,
+    borderColor: C.gold,
+  },
+
+  // ── Toast ──
+  toast: {
+    position: 'absolute',
+    bottom: 120,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: C.ink,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 50,
+    shadowColor: C.ink,
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  toastText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // ── Post-Scan View ──
+  postScanBg: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
+
+  // ── Status Area ──
+  statusSafe: {
+    backgroundColor: C.bg,
+  },
+  statusArea: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 28,
+    minHeight: 100,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  statusTxt: {
+    fontSize: 14,
+    color: C.inkMid,
+    fontWeight: '500',
+  },
+
+  // ── Error ──
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: C.goldSoft,
+    borderWidth: 1.5,
+    borderColor: C.borderGold,
+    borderRadius: 16,
+    padding: 14,
+  },
+  errorIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: C.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorIconTxt: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  errorTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.error,
+    marginBottom: 2,
+  },
+  errorSub: {
+    fontSize: 12,
+    color: C.inkMid,
+  },
+  errorAutoReset: {
+    fontSize: 11,
+    color: C.inkLight,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  retryBtn: {
+    backgroundColor: C.ink,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  retryBtnTxt: {
+    fontSize: 13,
+    color: '#FFF',
+    fontWeight: '700',
+  },
+
+  // ── Hint ──
+  hintBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  hintIco: {
+    fontSize: 18,
+    color: C.gold,
+    marginTop: 1,
+  },
+  hintTxt: {
+    flex: 1,
+    fontSize: 14,
+    color: C.inkMid,
+    lineHeight: 22,
+  },
+
+  // ── Permission Screen ──
+  permIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: C.goldSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: C.borderGold,
+  },
+  permTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: C.ink,
+    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  permSub: {
+    fontSize: 15,
+    color: C.inkMid,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  permBtn: {
+    backgroundColor: C.ink,
+    paddingHorizontal: 36,
+    paddingVertical: 16,
+    borderRadius: 50,
+    width: '100%',
+    alignItems: 'center',
+  },
+  permBtnTxt: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 16,
+    letterSpacing: 0.3,
+  },
+});
+}
+
+let styles = getStyles(C);
 
 type ArtifactTranslation = {
   language_code: string;
@@ -96,7 +430,7 @@ function ScanFrame({ pulse }: { pulse: Animated.Value }) {
         style={[sf.scanLine, {
           opacity: pulse.interpolate({ inputRange: [0, 40/180, 45/180, 1], outputRange: [0, 0, 0.9, 0.9] }),
           transform: [{
-            translateY: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 160] }),
+            translateY: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 220] }),
           }],
         }]}
       />
@@ -104,14 +438,15 @@ function ScanFrame({ pulse }: { pulse: Animated.Value }) {
   );
 }
 
-const sf = StyleSheet.create({
-  frame:    { width: 180, height: 180, position: 'relative' },
-  corner:   { position: 'absolute', width: 24, height: 24, borderColor: C.gold },
+function getSfStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
+  frame:    { width: 240, height: 240, position: 'relative' },
+  corner:   { position: 'absolute', width: 28, height: 28, borderColor: C.gold },
   scanLine: {
     position: 'absolute', left: 10, right: 10, height: 2,
     backgroundColor: C.gold, borderRadius: 1,
   },
 });
+}
 
 // ─── Artifact Detail Modal (Sacred Heritage Styled) ─────────────────────────────
 function ArtifactModal({
@@ -123,7 +458,6 @@ function ArtifactModal({
   const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
   const [translations, setTranslations] = useState<ArtifactTranslation[]>([]);
   const [isSaved, setIsSaved] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
   const playerRef = useRef<any>(null);
   const playbackSubscriptionRef = useRef<any>(null);
 
@@ -177,21 +511,13 @@ function ArtifactModal({
   async function checkSaveAndFavorite() {
     if (!artifact) return;
     const saved = await getStringArray(STORAGE_KEYS.savedArtifacts);
-    const favorited = await getStringArray(STORAGE_KEYS.favoriteArtifacts);
     setIsSaved(saved.includes(artifact.id));
-    setIsFavorited(favorited.includes(artifact.id));
   }
 
   async function toggleSave() {
     if (!artifact) return;
     const updated = await toggleInStringArray(STORAGE_KEYS.savedArtifacts, artifact.id);
     setIsSaved(updated.includes(artifact.id));
-  }
-
-  async function toggleFavorite() {
-    if (!artifact) return;
-    const updated = await toggleInStringArray(STORAGE_KEYS.favoriteArtifacts, artifact.id);
-    setIsFavorited(updated.includes(artifact.id));
   }
 
   function getDescriptionByLanguage(lang: string): string {
@@ -268,6 +594,9 @@ function ArtifactModal({
     es:  { label: 'Spanish',  flag: '🇪🇸' },
     ko:  { label: 'Korean',   flag: '🇰🇷' },
   };
+  // All translations for language/description switching
+  const availableLangs = translations.filter(t => t.description || t.audio_url);
+  // Only those with audio for the player
   const availableAudio = translations.filter(t => t.audio_url);
 
   return (
@@ -322,13 +651,13 @@ function ArtifactModal({
               </View>
 
               {/* Language Selection & Audio Controls */}
-              {availableAudio.length > 0 && (
+              {availableLangs.length > 1 && (
                 <View style={ams.section}>
-                  <Text style={ams.sectionLabel}>AUDIO GUIDE</Text>
-                  
-                  {/* Language Tabs */}
+                  <Text style={ams.sectionLabel}>LANGUAGE</Text>
+
+                  {/* Language Tabs — switch description + audio */}
                   <View style={ams.audioLangTabs}>
-                    {availableAudio.map(t => {
+                    {availableLangs.map(t => {
                       const meta = langMeta[t.language_code] || { label: t.language_code.toUpperCase(), flag: '🌐' };
                       return (
                         <TouchableOpacity
@@ -346,7 +675,7 @@ function ArtifactModal({
                     })}
                   </View>
 
-                  {/* Audio Player */}
+                  {/* Audio Player — only if selected lang has audio */}
                   {(() => {
                     const cur = availableAudio.find(t => t.language_code === selectedLanguage);
                     if (!cur?.audio_url) return null;
@@ -354,40 +683,24 @@ function ArtifactModal({
                     return (
                       <TouchableOpacity
                         style={[ams.audioPlayButton, playingLang === cur.language_code && ams.audioPlayButtonActive]}
-                        onPress={() => {
-                          playingLang === cur.language_code
-                            ? stopAudio()
-                            : playAudio(cur.audio_url!, cur.language_code);
-                        }}
+                        onPress={() => playingLang === cur.language_code ? stopAudio() : playAudio(cur.audio_url!, cur.language_code)}
                         activeOpacity={0.8}
                       >
                         <View style={[ams.audioPlayIcon, playingLang === cur.language_code && ams.audioPlayIconActive]}>
-                          <Ionicons
-                            name={playingLang === cur.language_code ? 'pause' : 'play'}
-                            size={20}
-                            color={playingLang === cur.language_code ? C.ink : C.gold}
-                          />
+                          <Ionicons name={playingLang === cur.language_code ? 'pause' : 'play'} size={20} color={playingLang === cur.language_code ? C.ink : C.gold} />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={ams.audioPlayLabel}>
-                            {playingLang === cur.language_code ? 'Now playing' : 'Tap to listen'}
-                          </Text>
-                          <Text style={ams.audioPlaySub}>
-                            {meta.flag} {meta.label} narration
-                          </Text>
+                          <Text style={ams.audioPlayLabel}>{playingLang === cur.language_code ? 'Now playing' : 'Tap to listen'}</Text>
+                          <Text style={ams.audioPlaySub}>{meta.flag} {meta.label} narration</Text>
                         </View>
-                        <Ionicons
-                          name={playingLang === cur.language_code ? 'volume-high' : 'volume-medium-outline'}
-                          size={20}
-                          color={playingLang === cur.language_code ? C.gold : C.inkLight}
-                        />
+                        <Ionicons name={playingLang === cur.language_code ? 'volume-high' : 'volume-medium-outline'} size={20} color={playingLang === cur.language_code ? C.gold : C.inkLight} />
                       </TouchableOpacity>
                     );
                   })()}
                 </View>
               )}
 
-              {/* Save & Favorite Buttons */}
+              {/* Save Button */}
               <View style={ams.actionButtonsRow}>
                 <TouchableOpacity 
                   style={[ams.actionBtn, isSaved && ams.actionBtnGold]} 
@@ -403,21 +716,6 @@ function ArtifactModal({
                     {isSaved ? 'Saved' : 'Save'}
                   </Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[ams.actionBtn, isFavorited && ams.actionBtnCrimson]} 
-                  onPress={toggleFavorite}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons 
-                    name={isFavorited ? 'heart' : 'heart-outline'} 
-                    size={18} 
-                    color={isFavorited ? C.error : C.inkMid}
-                  />
-                  <Text style={[ams.actionBtnText, isFavorited && { color: '#fff' }]}>
-                    {isFavorited ? 'Liked' : 'Like'}
-                  </Text>
-                </TouchableOpacity>
               </View>
 
               <TouchableOpacity style={ams.doneBtn} onPress={handleClose} activeOpacity={0.85}>
@@ -431,7 +729,7 @@ function ArtifactModal({
   );
 }
 
-const ams = StyleSheet.create({
+function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'center',
@@ -654,38 +952,40 @@ const ams = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
+}
 
 // ─── Main QRScanner Component ──────────────────────────────────────────────────
-export default function QRScanner() {
+export default function QRScanner({ setNavbarVisible }: { setNavbarVisible?: (v: boolean) => void }) {
+  const { theme } = useAppTheme(); C = buildC(theme); sf = getSfStyles(C); ams = getAmsStyles(C); styles = getStyles(C);
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(true);
+  const [torchOn, setTorchOn]           = useState(false);
   const [scanned, setScanned]           = useState(false);
   const [scanning, setScanning]         = useState(false);
   const [artifact, setArtifact]         = useState<Artifact | null>(null);
   const [scanError, setScanError]       = useState<string | null>(null);
   const [scannedArtifacts, setScannedArtifacts] = useState<Artifact[]>([]);
-  const [showCollection, setShowCollection] = useState(false);
+  const [toast, setToast]               = useState<string | null>(null);
+  const toastTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  // Hide navbar when modal is open
+  useEffect(() => {
+    setNavbarVisible?.(!artifact);
+  }, [artifact]);
 
   // Load scanned artifacts from storage
   useEffect(() => {
-    const loadScannedArtifacts = async () => {
-      try {
-        const stored = await AsyncStorage.getItem('scannedArtifacts');
-        if (stored) {
-          setScannedArtifacts(JSON.parse(stored));
-        }
-      } catch (error) {
-        console.error('Error loading scanned artifacts:', error);
-      }
-    };
-    loadScannedArtifacts();
+    AsyncStorage.getItem('scannedArtifacts')
+      .then(stored => stored && setScannedArtifacts(JSON.parse(stored)))
+      .catch(() => {});
   }, []);
 
   // Pulse animation loop
   useEffect(() => {
     if (!cameraActive) return;
-    
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 1500, useNativeDriver: false }),
@@ -698,11 +998,41 @@ export default function QRScanner() {
     return () => loop.stop();
   }, [cameraActive]);
 
+  // Cleanup timers on unmount
+  useEffect(() => () => {
+    toastTimer.current && clearTimeout(toastTimer.current);
+    errorTimer.current && clearTimeout(errorTimer.current);
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.delay(1800),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
+    ]).start(() => setToast(null));
+  };
+
+  const playScanSound = async () => {
+    // Drop in a sound file at assets/sounds/scan_success.mp3 to enable audio feedback.
+    // The try/catch ensures silence if the asset is missing.
+    try {
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldPlayInBackground: false, interruptionMode: 'duckOthers' });
+      const player = createAudioPlayer(require('../../../assets/sounds/scan_success.mp3')) as any;
+      player.play();
+      setTimeout(() => player.remove?.(), 3000);
+    } catch (_) {}
+  };
+
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
     setScanning(true);
     setScanError(null);
+
+    // Haptic + sound feedback immediately on detection
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    playScanSound();
 
     try {
       const { data: result, error } = await supabase
@@ -713,36 +1043,41 @@ export default function QRScanner() {
 
       if (error) throw error;
       if (!result) {
-        setScanError('No artifact found for this QR code.');
+        setScanError('QR code not recognised. Make sure you\'re scanning an official Sacred Heritage QR tag.');
+        // Auto-reset after 3 s
+        errorTimer.current = setTimeout(() => startScanning(), 3000);
         return;
       }
-      
-      setCameraActive(false);
-      setArtifact(result);
 
-      // Add to scanned artifacts collection
-      const updatedArtifacts = [...scannedArtifacts];
-      const existingIndex = updatedArtifacts.findIndex(a => a.id === result.id);
-      if (existingIndex === -1) {
-        updatedArtifacts.push(result);
-        setScannedArtifacts(updatedArtifacts);
-        await AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updatedArtifacts));
-      }
+      setCameraActive(false);
+      setArtifact(result); // ← modal opens immediately
+
+      // Persist to scan history
+      setScannedArtifacts(prev => {
+        if (prev.find(a => a.id === result.id)) return prev;
+        const updated = [...prev, result];
+        AsyncStorage.setItem('scannedArtifacts', JSON.stringify(updated)).catch(() => {});
+        return updated;
+      });
     } catch (e: any) {
-      setScanError(e.message ?? 'Something went wrong.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setScanError(e.message ?? 'Something went wrong. Please try again.');
+      errorTimer.current = setTimeout(() => startScanning(), 3000);
     } finally {
       setScanning(false);
     }
   };
 
   const reset = () => {
-    setCameraActive(true);
+    setArtifact(null);
     setScanned(false);
     setScanError(null);
-    setArtifact(null);
+    setCameraActive(true);
+    showToast('Ready to scan');
   };
 
   const startScanning = () => {
+    errorTimer.current && clearTimeout(errorTimer.current);
     setScanned(false);
     setScanError(null);
     setCameraActive(true);
@@ -750,137 +1085,115 @@ export default function QRScanner() {
 
   // ── Permission states ────────────────────────────────────────────────────────
   if (!permission) return (
-    <SafeAreaView style={s.centered}>
+    <SafeAreaView style={styles.centered}>
       <ActivityIndicator size="large" color={C.gold} />
     </SafeAreaView>
   );
 
   if (!permission.granted) return (
-    <SafeAreaView style={s.centered}>
-      <View style={s.permIconWrap}>
+    <SafeAreaView style={styles.centered}>
+      <View style={styles.permIconWrap}>
         <Ionicons name="camera-outline" size={48} color={C.gold} />
       </View>
-      <Text style={s.permTitle}>Camera Access Needed</Text>
-      <Text style={s.permSub}>Allow camera access to scan artifact QR codes and discover their sacred history</Text>
-      <TouchableOpacity style={s.permBtn} onPress={requestPermission} activeOpacity={0.85}>
-        <Text style={s.permBtnTxt}>Grant Permission</Text>
+      <Text style={styles.permTitle}>Camera Access Needed</Text>
+      <Text style={styles.permSub}>Allow camera access to scan artifact QR codes and discover their sacred history</Text>
+      <TouchableOpacity style={styles.permBtn} onPress={requestPermission} activeOpacity={0.85}>
+        <Text style={styles.permBtnTxt}>Grant Permission</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
 
-  // Show Collection Page if collection button was pressed
-  if (showCollection) {
-    return <CollectionPage onBack={() => setShowCollection(false)} />;
-  }
-
   return (
-    <View style={s.container}>
-      {/* ── Header with Collection Icon ── */}
-      <SafeAreaView edges={['top']} style={s.headerSafe}>
-        <View style={s.header}>
-          <View style={s.headerLeft}>
-            <Text style={s.eyebrow}>✦ SACRED HERITAGE</Text>
-            <Text style={s.title}>QR Scanner</Text>
-            <View style={s.goldLine} />
+    <View style={styles.container}>
+      {/* ── Header ── */}
+      <SafeAreaView edges={['top']} style={styles.headerSafe}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.eyebrow}>✦ SACRED HERITAGE</Text>
+            <Text style={styles.title}>QR Scanner</Text>
+            <View style={styles.goldLine} />
           </View>
-          
-          {/* Collection Button - Icon with counter */}
-          <TouchableOpacity 
-            style={s.collectionIconBtn} 
-            onPress={() => setShowCollection(true)}
-            activeOpacity={0.7}
-          >
-            <View style={s.collectionIconCircle}>
-              <Ionicons name="library-outline" size={22} color={C.gold} />
-              {scannedArtifacts.length > 0 && (
-                <View style={s.collectionBadge}>
-                  <Text style={s.collectionBadgeText}>{scannedArtifacts.length}</Text>
-                </View>
-              )}
+          {/* Scan history badge */}
+          {scannedArtifacts.length > 0 && (
+            <View style={styles.collectionIconCircle}>
+              <Ionicons name="scan-outline" size={20} color={C.gold} />
+              <View style={styles.collectionBadge}>
+                <Text style={styles.collectionBadgeText}>{scannedArtifacts.length}</Text>
+              </View>
             </View>
-          </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
 
-      {/* ── Camera / Post-Scan View ── */}
-      <View style={s.cameraContainer}>
+      {/* ── Camera View (unmounted when modal is open) ── */}
+      <View style={styles.cameraContainer}>
         {cameraActive ? (
-          <View style={s.cameraWrap}>
+          <View style={styles.cameraWrap}>
             <CameraView
               style={StyleSheet.absoluteFill}
               facing="back"
+              enableTorch={torchOn}
               onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
               barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
             />
 
             {/* Dark vignette overlay */}
-            <View style={s.vignetteTop} />
-            <View style={s.vignetteBottom} />
-            <View style={s.vignetteLeft} />
-            <View style={s.vignetteRight} />
+            <View style={styles.vignetteTop} />
+            <View style={styles.vignetteBottom} />
+            <View style={styles.vignetteLeft} />
+            <View style={styles.vignetteRight} />
 
             {/* Scan frame centered */}
-            <View style={s.frameContainer}>
+            <View style={styles.frameContainer}>
               <ScanFrame pulse={pulse} />
             </View>
-            
+
+            {/* Torch toggle */}
+            <TouchableOpacity
+              style={[styles.torchBtn, torchOn && styles.torchBtnActive]}
+              onPress={() => setTorchOn(v => !v)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name={torchOn ? 'flashlight' : 'flashlight-outline'} size={20} color={torchOn ? C.ink : C.gold} />
+            </TouchableOpacity>
+
             {/* Scanning hint overlay */}
-            <View style={s.scanHintOverlay}>
-              <Text style={s.scanHintText}>Position QR code inside the gold frame</Text>
+            <View style={styles.scanHintOverlay}>
+              <Text style={styles.scanHintText}>Position QR code inside the gold frame</Text>
             </View>
           </View>
         ) : (
-          /* Post-scan static background */
-          <View style={s.postScanBg}>
-            <View style={s.postScanContent}>
-              {artifact && (
-                <View style={s.postScanSuccess}>
-                  <View style={s.postScanIconWrap}>
-                    <Ionicons name="checkmark" size={32} color={C.success} />
-                  </View>
-                  <Text style={s.postScanTitle}>Artifact Identified</Text>
-                  <Text style={s.postScanName}>{artifact.name}</Text>
-                  <Text style={s.postScanCategory}>{artifact.category}</Text>
-                </View>
-              )}
-              
-              <TouchableOpacity
-                style={s.clickToScanBtn}
-                onPress={startScanning}
-                activeOpacity={0.85}
-              >
-                <Text style={s.clickToScanBtnText}>Click to Scan</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          /* Blank placeholder — camera is unmounted while modal is open */
+          <View style={styles.postScanBg} />
         )}
       </View>
 
       {/* ── Status Area ── */}
-      <SafeAreaView edges={['bottom']} style={s.statusSafe}>
-        <View style={s.statusArea}>
+      <SafeAreaView edges={['bottom']} style={styles.statusSafe}>
+        <View style={styles.statusArea}>
           {scanning ? (
-            <View style={s.statusRow}>
+            <View style={styles.statusRow}>
               <ActivityIndicator size="small" color={C.gold} />
-              <Text style={s.statusTxt}>Looking up artifact…</Text>
+              <Text style={styles.statusTxt}>Looking up artifact…</Text>
             </View>
           ) : scanError ? (
-            <View style={s.errorBox}>
-              <View style={s.errorIcon}>
-                <Text style={s.errorIconTxt}>!</Text>
+            <View style={styles.errorBox}>
+              <View style={styles.errorIcon}>
+                <Text style={styles.errorIconTxt}>!</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.errorTitle}>Not Found</Text>
-                <Text style={s.errorSub}>{scanError}</Text>
+                <Text style={styles.errorTitle}>Not Recognised</Text>
+                <Text style={styles.errorSub}>{scanError}</Text>
+                <Text style={styles.errorAutoReset}>Retrying automatically…</Text>
               </View>
-              <TouchableOpacity onPress={startScanning} style={s.retryBtn} activeOpacity={0.85}>
-                <Text style={s.retryBtnTxt}>Retry</Text>
+              <TouchableOpacity onPress={startScanning} style={styles.retryBtn} activeOpacity={0.85}>
+                <Text style={styles.retryBtnTxt}>Retry</Text>
               </TouchableOpacity>
             </View>
           ) : cameraActive && !scanned ? (
-            <View style={s.hintBox}>
-              <Text style={s.hintIco}>◈</Text>
-              <Text style={s.hintTxt}>
+            <View style={styles.hintBox}>
+              <Text style={styles.hintIco}>◈</Text>
+              <Text style={styles.hintTxt}>
                 Point your camera at an artifact's QR code to reveal its sacred history and liturgical significance
               </Text>
             </View>
@@ -888,367 +1201,18 @@ export default function QRScanner() {
         </View>
       </SafeAreaView>
 
-      {/* ─── Artifact Detail Modal ── */}
+      {/* ── Toast ── */}
+      {toast && (
+        <Animated.View style={[styles.toast, { opacity: toastOpacity }]}>
+          <Ionicons name="checkmark-circle" size={16} color={C.gold} />
+          <Text style={styles.toastText}>{toast}</Text>
+        </Animated.View>
+      )}
+
+      {/* ─── Artifact Detail Modal (camera already unmounted above) ── */}
       <ArtifactModal artifact={artifact} onClose={reset} />
     </View>
   );
 }
 
 // ─── Styles (Sacred Heritage Theme) ────────────────────────────────────────────
-const s = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: C.bg,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: C.bg,
-    padding: 32,
-  },
-
-  // ── Header with Collection Icon ──
-  headerSafe: {
-    backgroundColor: C.bg,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  eyebrow: {
-    fontSize: 9.5,
-    letterSpacing: 3.5,
-    color: C.gold,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: C.ink,
-    letterSpacing: -0.8,
-  },
-  goldLine: {
-    width: 40,
-    height: 3,
-    backgroundColor: C.gold,
-    borderRadius: 2,
-    marginTop: 8,
-  },
-  
-  // Collection Icon Button
-  collectionIconBtn: {
-    marginTop: 4,
-  },
-  collectionIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: C.goldSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: C.borderGold,
-    position: 'relative',
-  },
-  collectionBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: C.gold,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: C.bg,
-  },
-  collectionBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: C.ink,
-  },
-
-  // ── Camera Container ──
-  cameraContainer: {
-    height: SCREEN_HEIGHT * 0.45,
-    marginHorizontal: 20,
-    marginVertical: 12,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: '#000',
-    shadowColor: C.ink,
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  cameraWrap: {
-    flex: 1,
-    position: 'relative',
-    backgroundColor: '#000',
-  },
-  vignetteTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '20%',
-    backgroundColor: C.vignette,
-  },
-  vignetteBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '20%',
-    backgroundColor: C.vignette,
-  },
-  vignetteLeft: {
-    position: 'absolute',
-    top: '20%',
-    left: 0,
-    width: '12%',
-    height: '60%',
-    backgroundColor: C.vignette,
-  },
-  vignetteRight: {
-    position: 'absolute',
-    top: '20%',
-    right: 0,
-    width: '12%',
-    height: '60%',
-    backgroundColor: C.vignette,
-  },
-  frameContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scanHintOverlay: {
-    position: 'absolute',
-    bottom: 16,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  scanHintText: {
-    backgroundColor: 'rgba(30,27,23,0.8)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    fontSize: 12,
-    color: C.gold,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    borderWidth: 1,
-    borderColor: C.borderGold,
-  },
-
-  // ── Post-Scan View ──
-  postScanBg: {
-    flex: 1,
-    backgroundColor: C.bg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  postScanContent: {
-    width: '100%',
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    gap: 24,
-  },
-  postScanSuccess: {
-    alignItems: 'center',
-    gap: 10,
-  },
-  postScanIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: C.goldSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: C.borderGold,
-  },
-  postScanTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: C.inkMid,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  postScanName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: C.ink,
-    marginTop: 2,
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  postScanCategory: {
-    fontSize: 12,
-    color: C.gold,
-    fontWeight: '600',
-    marginTop: 2,
-    letterSpacing: 1,
-  },
-  clickToScanBtn: {
-    width: '100%',
-    backgroundColor: C.ink,
-    borderRadius: 50,
-    paddingVertical: 14,
-    alignItems: 'center',
-    shadowColor: C.ink,
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 4,
-    marginTop: 8,
-  },
-  clickToScanBtnText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-
-  // ── Status Area ──
-  statusSafe: {
-    backgroundColor: C.bg,
-  },
-  statusArea: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 28,
-    minHeight: 100,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  statusTxt: {
-    fontSize: 14,
-    color: C.inkMid,
-    fontWeight: '500',
-  },
-
-  // ── Error ──
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: C.goldSoft,
-    borderWidth: 1.5,
-    borderColor: C.borderGold,
-    borderRadius: 16,
-    padding: 14,
-  },
-  errorIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: C.error,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorIconTxt: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  errorTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: C.error,
-    marginBottom: 2,
-  },
-  errorSub: {
-    fontSize: 12,
-    color: C.inkMid,
-  },
-  retryBtn: {
-    backgroundColor: C.ink,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  retryBtnTxt: {
-    fontSize: 13,
-    color: '#FFF',
-    fontWeight: '700',
-  },
-
-  // ── Hint ──
-  hintBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  hintIco: {
-    fontSize: 18,
-    color: C.gold,
-    marginTop: 1,
-  },
-  hintTxt: {
-    flex: 1,
-    fontSize: 14,
-    color: C.inkMid,
-    lineHeight: 22,
-  },
-
-  // ── Permission Screen ──
-  permIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: C.goldSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: C.borderGold,
-  },
-  permTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: C.ink,
-    marginBottom: 8,
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  permSub: {
-    fontSize: 15,
-    color: C.inkMid,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
-  },
-  permBtn: {
-    backgroundColor: C.ink,
-    paddingHorizontal: 36,
-    paddingVertical: 16,
-    borderRadius: 50,
-    width: '100%',
-    alignItems: 'center',
-  },
-  permBtnTxt: {
-    color: '#FFF',
-    fontWeight: '700',
-    fontSize: 16,
-    letterSpacing: 0.3,
-  },
-});

@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
-export default function AppIntro({ navigation }: any) {
+export default function AppIntro({ navigation, onOnboardingComplete }: any) {
   // Main animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -154,7 +154,11 @@ export default function AppIntro({ navigation }: any) {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        navigation.replace('SignIn');
+        if (onOnboardingComplete) {
+          onOnboardingComplete();
+        } else {
+          navigation.replace('SignIn');
+        }
       });
     }, 3200);
 

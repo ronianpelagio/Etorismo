@@ -13,28 +13,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { THEMES, type ThemeName } from '../../../constants/themes';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 export default function Theme({ navigation }: any) {
+  const { themeId: activeThemeId, setAppTheme } = useAppTheme();
   const [selectedTheme, setSelectedTheme] = useState<ThemeName>('light');
   const [isApplying, setIsApplying] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(1));
 
   useEffect(() => {
-    loadSavedTheme();
-  }, []);
-
-  const loadSavedTheme = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('appTheme');
-      if (saved && THEMES[saved as ThemeName]) {
-        setSelectedTheme(saved as ThemeName);
-      }
-    } catch (error) {
-      console.error('Failed to load theme:', error);
-    }
-  };
+    setSelectedTheme(activeThemeId);
+  }, [activeThemeId]);
 
   const currentPreview = THEMES[selectedTheme];
 
@@ -44,13 +35,9 @@ export default function Theme({ navigation }: any) {
       Animated.timing(fadeAnim, { toValue: 0.5, duration: 150, useNativeDriver: true }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
     ]).start();
-
     try {
-      await AsyncStorage.setItem('appTheme', selectedTheme);
-      // Small delay for visual feedback
-      setTimeout(() => {
-        navigation.goBack();
-      }, 300);
+      await setAppTheme(selectedTheme);
+      setTimeout(() => navigation.goBack(), 300);
     } catch (error) {
       console.error('Failed to save theme:', error);
     } finally {
@@ -63,7 +50,6 @@ export default function Theme({ navigation }: any) {
       light: 'Clean, bright, and modern',
       warm: 'Cozy golden-hour tones',
       sage: 'Nature-inspired tranquility',
-      dusk: 'Elegant dark sophistication',
       sepia: 'Vintage artifact warmth',
     };
     return descriptions[theme];
@@ -74,7 +60,6 @@ export default function Theme({ navigation }: any) {
       light: ['High contrast', 'Crisp borders', 'Day optimized'],
       warm: ['Soft amber', 'Gentle shadows', 'Evening comfort'],
       sage: ['Earthy tones', 'Calming greens', 'Natural feel'],
-      dusk: ['Deep blacks', 'Reduced glare', 'Night friendly'],
       sepia: ['Retro warmth', 'Paper texture', 'Vintage charm'],
     };
     return features[theme];

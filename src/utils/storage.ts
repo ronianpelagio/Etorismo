@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const STORAGE_KEYS = {
   savedArtifacts: 'savedArtifacts',
-  favoriteArtifacts: 'favoriteArtifacts',
   interestedEvents: 'interestedEvents',
 } as const;
 

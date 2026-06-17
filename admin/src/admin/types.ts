@@ -9,6 +9,7 @@ export interface AdminUser {
   email: string;
   role: string;
   profile_picture: string | null;
+  Address: string | null;
   created_at: string;
 }
 // Update your Artifact type in your types file
@@ -20,6 +21,18 @@ export type Artifact = {
   qr_value?: string | null;
   description?: string | null;
   image_url?: string | null;
+  creator?: string | null;
+  Historical_Significance?: string | null;
+  created_at?: string | null;
+};
+
+export type ArtifactTranslation = {
+  id: string;
+  artifact_id: string;
+  language_code: string;
+  name: string;
+  description?: string | null;
+  audio_url?: string | null;
   created_at?: string | null;
 };
 export type Announcement = {

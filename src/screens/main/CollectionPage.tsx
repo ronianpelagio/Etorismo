@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,23 +18,222 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase';
+import { useAppTheme } from '../../context/ThemeContext';
+import { THEMES } from '../../constants/themes';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─── Design tokens ──────────────────────────────────────────────────────────────
-const C = {
-  bg:       '#F7F4EF',
-  surface:  '#FFFFFF',
-  ink:      '#1A1612',
-  inkMid:   '#6B6459',
-  inkLight: '#A89F96',
-  gold:     '#C9A84C',
-  goldSoft: '#F5EDD8',
-  border:   '#EAE4DA',
-  error:    '#C0392B',
-  success:  '#2ECC71',
-};
+function buildC(t: typeof THEMES.light) {
+  return {
+    bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft, border: t.border, error: t.crimson, success: t.teal,
+  };
+}
+let C = buildC(THEMES.light);
+let ams: ReturnType<typeof getAmsStyles>;
+function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ── Header ──
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 12,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  eyebrow: {
+    fontSize: 10,
+    letterSpacing: 2.5,
+    color: C.inkMid,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: C.ink,
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  goldLine: {
+    width: 32,
+    height: 3,
+    backgroundColor: C.gold,
+    borderRadius: 2,
+  },
+
+  // ── Category Filter ──
+  categorySection: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  categoryList: {
+    paddingHorizontal: 24,
+    gap: 10,
+  },
+  categoryPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  categoryPillActive: {
+    backgroundColor: C.gold,
+    borderColor: C.gold,
+  },
+  categoryPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: C.inkMid,
+  },
+  categoryPillTextActive: {
+    color: C.surface,
+  },
+
+  // ── Artifacts List ──
+  artifactsList: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    gap: 12,
+  },
+
+  // ── Locked Artifact Card ──
+  artifactCardLocked: {
+    flexDirection: 'row',
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: C.border,
+    opacity: 0.6,
+  },
+  lockedImageWrapper: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+  },
+  grayscaleImage: {
+    opacity: 0.5,
+  },
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(26,22,18,0.3)',
+  },
+  artifactImage: {
+    width: '100%',
+    height: '100%',
+  },
+  artifactInfoLocked: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'center',
+  },
+  artifactNameLocked: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.ink,
+    marginBottom: 4,
+  },
+  artifactCategoryLocked: {
+    fontSize: 12,
+    color: C.inkLight,
+    marginBottom: 6,
+  },
+  lockedText: {
+    fontSize: 11,
+    color: C.error,
+    fontWeight: '500',
+    fontStyle: 'italic',
+  },
+
+  // ── Unlocked Artifact Card ──
+  artifactCardUnlocked: {
+    flexDirection: 'row',
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: C.border,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  unlockedImageWrapper: {
+    width: 100,
+    height: 100,
+    overflow: 'hidden',
+  },
+  artifactInfoUnlocked: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  artifactNameUnlocked: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.ink,
+    marginBottom: 4,
+  },
+  artifactCategoryUnlocked: {
+    fontSize: 12,
+    color: C.gold,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  viewDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewDetailsText: {
+    fontSize: 11,
+    color: C.gold,
+    fontWeight: '600',
+  },
+
+  // ── Empty State ──
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: C.inkMid,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+});
+}
+
+let styles = getStyles(C);
 
 type ArtifactTranslation = {
   id: string;
@@ -324,7 +523,7 @@ function ArtifactModal({
   );
 }
 
-const ams = StyleSheet.create({
+function getAmsStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'center',
@@ -540,9 +739,11 @@ const ams = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
+}
 
 // ─── Main Collection Page Component ─────────────────────────────────────────────
 export default function CollectionPage({ onBack }: { onBack: () => void }) {
+  const { theme } = useAppTheme(); C = buildC(theme); ams = getAmsStyles(C); styles = getStyles(C);
   const [allArtifacts, setAllArtifacts] = useState<Artifact[]>([]);
   const [scannedArtifactIds, setScannedArtifactIds] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -603,25 +804,25 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
       ?? 'https://via.placeholder.com/100?text=Artifact';
 
     return (
-      <View style={s.artifactCardLocked}>
+      <View style={styles.artifactCardLocked}>
         {/* Grayscale Image Container */}
-        <View style={s.lockedImageWrapper}>
+        <View style={styles.lockedImageWrapper}>
           <Image
             source={{ uri: imgUrl }}
-            style={[s.artifactImage, s.grayscaleImage]}
+            style={[styles.artifactImage, styles.grayscaleImage]}
             resizeMode="cover"
           />
           {/* Lock Icon Overlay */}
-          <View style={s.lockOverlay}>
+          <View style={styles.lockOverlay}>
             <Ionicons name="lock-closed" size={24} color={C.surface} />
           </View>
         </View>
 
         {/* Info Section */}
-        <View style={s.artifactInfoLocked}>
-          <Text style={s.artifactNameLocked} numberOfLines={2}>{artifact.name}</Text>
-          <Text style={s.artifactCategoryLocked}>{artifact.category}</Text>
-          <Text style={s.lockedText}>Scan to unlock</Text>
+        <View style={styles.artifactInfoLocked}>
+          <Text style={styles.artifactNameLocked} numberOfLines={2}>{artifact.name}</Text>
+          <Text style={styles.artifactCategoryLocked}>{artifact.category}</Text>
+          <Text style={styles.lockedText}>Scan to unlock</Text>
         </View>
       </View>
     );
@@ -634,25 +835,25 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
 
     return (
       <TouchableOpacity
-        style={s.artifactCardUnlocked}
+        style={styles.artifactCardUnlocked}
         onPress={() => setSelectedArtifact(artifact)}
         activeOpacity={0.7}
       >
         {/* Image Container */}
-        <View style={s.unlockedImageWrapper}>
+        <View style={styles.unlockedImageWrapper}>
           <Image
             source={{ uri: imgUrl }}
-            style={s.artifactImage}
+            style={styles.artifactImage}
             resizeMode="cover"
           />
         </View>
 
         {/* Info Section */}
-        <View style={s.artifactInfoUnlocked}>
-          <Text style={s.artifactNameUnlocked} numberOfLines={2}>{artifact.name}</Text>
-          <Text style={s.artifactCategoryUnlocked}>{artifact.category}</Text>
-          <View style={s.viewDetailsRow}>
-            <Text style={s.viewDetailsText}>View details</Text>
+        <View style={styles.artifactInfoUnlocked}>
+          <Text style={styles.artifactNameUnlocked} numberOfLines={2}>{artifact.name}</Text>
+          <Text style={styles.artifactCategoryUnlocked}>{artifact.category}</Text>
+          <View style={styles.viewDetailsRow}>
+            <Text style={styles.viewDetailsText}>View details</Text>
             <Ionicons name="chevron-forward" size={16} color={C.gold} />
           </View>
         </View>
@@ -662,8 +863,8 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={s.container}>
-        <View style={s.loadingContainer}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={C.gold} />
         </View>
       </SafeAreaView>
@@ -671,40 +872,40 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={onBack} style={s.backButton} activeOpacity={0.7}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color={C.ink} />
         </TouchableOpacity>
-        <View style={s.headerContent}>
-          <Text style={s.eyebrow}>— Collection</Text>
-          <Text style={s.title}>My Artifacts</Text>
-          <View style={s.goldLine} />
+        <View style={styles.headerContent}>
+          <Text style={styles.eyebrow}>— Collection</Text>
+          <Text style={styles.title}>My Artifacts</Text>
+          <View style={styles.goldLine} />
         </View>
       </View>
 
       {/* Category Filter (Horizontal Scroll) */}
-      <View style={s.categorySection}>
+      <View style={styles.categorySection}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.categoryList}
+          contentContainerStyle={styles.categoryList}
           scrollEventThrottle={16}
         >
           {/* All Categories Button */}
           <TouchableOpacity
             style={[
-              s.categoryPill,
-              selectedCategory === null && s.categoryPillActive,
+              styles.categoryPill,
+              selectedCategory === null && styles.categoryPillActive,
             ]}
             onPress={() => setSelectedCategory(null)}
             activeOpacity={0.7}
           >
             <Text
               style={[
-                s.categoryPillText,
-                selectedCategory === null && s.categoryPillTextActive,
+                styles.categoryPillText,
+                selectedCategory === null && styles.categoryPillTextActive,
               ]}
             >
               All
@@ -716,16 +917,16 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
             <TouchableOpacity
               key={category}
               style={[
-                s.categoryPill,
-                selectedCategory === category && s.categoryPillActive,
+                styles.categoryPill,
+                selectedCategory === category && styles.categoryPillActive,
               ]}
               onPress={() => setSelectedCategory(category)}
               activeOpacity={0.7}
             >
               <Text
                 style={[
-                  s.categoryPillText,
-                  selectedCategory === category && s.categoryPillTextActive,
+                  styles.categoryPillText,
+                  selectedCategory === category && styles.categoryPillTextActive,
                 ]}
                 numberOfLines={1}
               >
@@ -738,15 +939,15 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
 
       {/* Artifacts Grid/List (Mixed Layout) */}
       {filteredArtifacts.length === 0 ? (
-        <View style={s.emptyContainer}>
+        <View style={styles.emptyContainer}>
           <Ionicons name="library-outline" size={48} color={C.inkLight} />
-          <Text style={s.emptyText}>No artifacts in this category</Text>
+          <Text style={styles.emptyText}>No artifacts in this category</Text>
         </View>
       ) : (
         <FlatList
           data={filteredArtifacts}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={s.artifactsList}
+          contentContainerStyle={styles.artifactsList}
           renderItem={({ item }) =>
             isScanned(item.id)
               ? renderUnlockedArtifact(item)
@@ -765,203 +966,3 @@ export default function CollectionPage({ onBack }: { onBack: () => void }) {
     </SafeAreaView>
   );
 }
-
-const s = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: C.bg,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // ── Header ──
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 12,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  eyebrow: {
-    fontSize: 10,
-    letterSpacing: 2.5,
-    color: C.inkMid,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: C.ink,
-    letterSpacing: -0.5,
-    marginBottom: 8,
-  },
-  goldLine: {
-    width: 32,
-    height: 3,
-    backgroundColor: C.gold,
-    borderRadius: 2,
-  },
-
-  // ── Category Filter ──
-  categorySection: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  categoryList: {
-    paddingHorizontal: 24,
-    gap: 10,
-  },
-  categoryPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  categoryPillActive: {
-    backgroundColor: C.gold,
-    borderColor: C.gold,
-  },
-  categoryPillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: C.inkMid,
-  },
-  categoryPillTextActive: {
-    color: C.surface,
-  },
-
-  // ── Artifacts List ──
-  artifactsList: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    gap: 12,
-  },
-
-  // ── Locked Artifact Card ──
-  artifactCardLocked: {
-    flexDirection: 'row',
-    backgroundColor: C.surface,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: C.border,
-    opacity: 0.6,
-  },
-  lockedImageWrapper: {
-    position: 'relative',
-    width: 100,
-    height: 100,
-  },
-  grayscaleImage: {
-    opacity: 0.5,
-  },
-  lockOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(26,22,18,0.3)',
-  },
-  artifactImage: {
-    width: '100%',
-    height: '100%',
-  },
-  artifactInfoLocked: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'center',
-  },
-  artifactNameLocked: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: C.ink,
-    marginBottom: 4,
-  },
-  artifactCategoryLocked: {
-    fontSize: 12,
-    color: C.inkLight,
-    marginBottom: 6,
-  },
-  lockedText: {
-    fontSize: 11,
-    color: C.error,
-    fontWeight: '500',
-    fontStyle: 'italic',
-  },
-
-  // ── Unlocked Artifact Card ──
-  artifactCardUnlocked: {
-    flexDirection: 'row',
-    backgroundColor: C.surface,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: C.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  unlockedImageWrapper: {
-    width: 100,
-    height: 100,
-    overflow: 'hidden',
-  },
-  artifactInfoUnlocked: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'space-between',
-  },
-  artifactNameUnlocked: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: C.ink,
-    marginBottom: 4,
-  },
-  artifactCategoryUnlocked: {
-    fontSize: 12,
-    color: C.gold,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  viewDetailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  viewDetailsText: {
-    fontSize: 11,
-    color: C.gold,
-    fontWeight: '600',
-  },
-
-  // ── Empty State ──
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: C.inkMid,
-    marginTop: 12,
-    textAlign: 'center',
-  },
-});

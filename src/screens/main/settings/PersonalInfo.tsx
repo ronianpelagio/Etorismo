@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,17 +12,80 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../../services/supabase';
 
-const C = {
-  bg:       '#F7F4EF',
-  surface:  '#FFFFFF',
-  ink:      '#1A1612',
-  inkMid:   '#6B6459',
-  inkLight: '#A89F96',
-  gold:     '#C9A84C',
-  goldSoft: '#F5EDD8',
-  border:   '#EAE4DA',
-  danger:   '#C0392B',
-};
+import { useAppTheme } from '../../../context/ThemeContext';
+import { THEMES } from '../../../constants/themes';
+function buildC(t: typeof THEMES.light) {
+  return { bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft, border: t.border, error: t.crimson, success: t.teal, raised: t.raised };
+}
+let C = buildC(THEMES.light);
+function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.bg },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  backBtn: {
+    width: 40, height: 40,
+    borderRadius: 20,
+    backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  backTxt: { fontSize: 24, color: C.ink, lineHeight: 28, marginTop: -2 },
+  pageTitle: { fontSize: 18, fontWeight: '800', color: C.ink, letterSpacing: -0.3 },
+
+  titleDivider: { height: 3, backgroundColor: C.gold, marginHorizontal: 20, borderRadius: 2, marginBottom: 4 },
+
+  scrollContent: { paddingBottom: 40 },
+
+  section: { paddingHorizontal: 20, paddingTop: 24 },
+  sectionLabel: { fontSize: 10, fontWeight: '800', color: C.gold, letterSpacing: 2.5, marginBottom: 10 },
+  card: {
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    borderWidth: 1, borderColor: C.border,
+    overflow: 'hidden',
+    padding: 18,
+  },
+
+  formGroup: { marginBottom: 20 },
+  label: { fontSize: 13, fontWeight: '600', color: C.ink, marginBottom: 8 },
+  input: {
+    backgroundColor: C.bg,
+    borderRadius: 10,
+    borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: C.ink,
+  },
+  disabledInput: {
+    backgroundColor: C.goldSoft,
+    justifyContent: 'center',
+  },
+  disabledText: { fontSize: 15, color: C.inkMid },
+  helperText: { fontSize: 11, color: C.inkLight, marginTop: 4, fontStyle: 'italic' },
+
+  saveBtn: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    backgroundColor: C.ink,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnText: { fontSize: 15, fontWeight: '700', color: C.surface, letterSpacing: 0.3 },
+});
+}
+
+let styles = getStyles(C);
 
 type UserData = {
   id: string;
@@ -33,6 +96,7 @@ type UserData = {
 };
 
 export default function PersonalInfo({ navigation }: any) {
+  const { theme } = useAppTheme(); C = buildC(theme); styles = getStyles(C);
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -189,70 +253,3 @@ export default function PersonalInfo({ navigation }: any) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-  },
-  backBtn: {
-    width: 40, height: 40,
-    borderRadius: 20,
-    backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.border,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  backTxt: { fontSize: 24, color: C.ink, lineHeight: 28, marginTop: -2 },
-  pageTitle: { fontSize: 18, fontWeight: '800', color: C.ink, letterSpacing: -0.3 },
-
-  titleDivider: { height: 3, backgroundColor: C.gold, marginHorizontal: 20, borderRadius: 2, marginBottom: 4 },
-
-  scrollContent: { paddingBottom: 40 },
-
-  section: { paddingHorizontal: 20, paddingTop: 24 },
-  sectionLabel: { fontSize: 10, fontWeight: '800', color: C.gold, letterSpacing: 2.5, marginBottom: 10 },
-  card: {
-    backgroundColor: C.surface,
-    borderRadius: 16,
-    borderWidth: 1, borderColor: C.border,
-    overflow: 'hidden',
-    padding: 18,
-  },
-
-  formGroup: { marginBottom: 20 },
-  label: { fontSize: 13, fontWeight: '600', color: C.ink, marginBottom: 8 },
-  input: {
-    backgroundColor: C.bg,
-    borderRadius: 10,
-    borderWidth: 1, borderColor: C.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: C.ink,
-  },
-  disabledInput: {
-    backgroundColor: C.goldSoft,
-    justifyContent: 'center',
-  },
-  disabledText: { fontSize: 15, color: C.inkMid },
-  helperText: { fontSize: 11, color: C.inkLight, marginTop: 4, fontStyle: 'italic' },
-
-  saveBtn: {
-    marginHorizontal: 20,
-    marginTop: 24,
-    backgroundColor: C.ink,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: C.surface, letterSpacing: 0.3 },
-});
-

@@ -1,11 +1,14 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
-  ScrollView, StatusBar, Animated, Image, useWindowDimensions,
+  ScrollView, StatusBar, Animated, Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
 import { supabase } from '../../services/supabase';
+import { createOTP, sendOTPEmail } from '../../services/emailService';
 import { Ionicons as Icon } from '@expo/vector-icons';
 import { FontAwesome5 as FAIcon } from '@expo/vector-icons';
 
@@ -143,9 +146,29 @@ export default function SignUp({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [gender, setGender] = useState<Gender | ''>('');
   const [age, setAge] = useState('');
+  const [address, setAddress] = useState('');
+  const [profilePicUri, setProfilePicUri] = useState<string | null>(null);
+  const [picSize, setPicSize] = useState(300); // px width
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { Alert.alert('Permission needed', 'Allow photo access to set a profile picture.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.9 });
+    if (!result.canceled) setProfilePicUri(result.assets[0].uri);
+  };
+
+  const getResizedUri = async (): Promise<string | null> => {
+    if (!profilePicUri) return null;
+    const resized = await ImageManipulator.manipulateAsync(
+      profilePicUri,
+      [{ resize: { width: picSize } }],
+      { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    return resized.uri;
+  };
 
   const validateStep1 = () => {
     const e: Record<string, string> = {};
@@ -178,13 +201,43 @@ export default function SignUp({ navigation }: any) {
     if (!validateStep2()) return;
     setLoading(true);
     try {
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // Upload profile picture if selected
+      let profilePictureUrl: string | null = null;
+      if (profilePicUri) {
+        const resizedUri = (await getResizedUri()) ?? profilePicUri;
+        const ext = 'jpg';
+        const fileName = `${normalizedEmail.replace(/[^a-z0-9]/g, '_')}_${Date.now()}.${ext}`;
+        const base64 = await FileSystem.readAsStringAsync(resizedUri, { encoding: FileSystem.EncodingType.Base64 });
+        const byteArray = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        const { error: uploadError } = await supabase.storage
+          .from('profile-pictures')
+          .upload(fileName, byteArray, { contentType: 'image/jpeg', upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('profile-pictures').getPublicUrl(fileName);
+        profilePictureUrl = publicUrl;
+      }
+
       const { error } = await supabase.auth.signUp({
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         password,
-        options: { data: { first_name: firstName, last_name: lastName, gender, age: parseInt(age, 10) } }
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            gender,
+            age: parseInt(age, 10),
+            Address: address.trim() || null,
+            profile_picture: profilePictureUrl,
+          }
+        }
       });
       if (error) throw error;
-      Alert.alert('Success', 'Check your email for verification.', [{ text: 'OK', onPress: () => navigation.navigate('SignIn') }]);
+
+      const code = createOTP(normalizedEmail);
+      await sendOTPEmail(normalizedEmail, code);
+      navigation.navigate('VerifyOTP', { email: normalizedEmail });
     } catch (e: any) { Alert.alert('Error', e.message); } finally { setLoading(false); }
   };
 
@@ -219,6 +272,43 @@ export default function SignUp({ navigation }: any) {
                 </View>
                 <GenderSelector selected={gender} onSelect={g => { setGender(g); clearErr('gender'); }} error={errors.gender} />
                 <Field label="Age" value={age} onChangeText={t => { setAge(t); clearErr('age'); }} placeholder="Age" keyboardType="numeric" error={errors.age} />
+                <Field label="Address" value={address} onChangeText={setAddress} placeholder="Street, City, Province" autoCapitalize="words" />
+
+                {/* Profile Picture */}
+                <View style={s.picSection}>
+                  <Text style={fs.label}>PROFILE PICTURE (OPTIONAL)</Text>
+                  <TouchableOpacity style={s.picPicker} onPress={pickImage}>
+                    {profilePicUri ? (
+                      <Image source={{ uri: profilePicUri }} style={[s.picPreview, { width: picSize * 0.4, height: picSize * 0.4, borderRadius: picSize * 0.2 }]} />
+                    ) : (
+                      <View style={s.picPlaceholder}>
+                        <Icon name="camera-outline" size={28} color={C.inkLight} />
+                        <Text style={s.picHint}>Tap to choose</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  {profilePicUri && (
+                    <View style={s.sliderWrap}>
+                      <Text style={s.sliderLabel}>Size: {picSize}px</Text>
+                      <View style={s.stepRow}>
+                        <TouchableOpacity style={s.stepBtn} onPress={() => setPicSize(v => Math.max(100, v - 50))}>
+                          <Icon name="remove" size={18} color={C.ink} />
+                        </TouchableOpacity>
+                        <View style={s.stepBar}>
+                          <View style={[s.stepFill, { width: `${((picSize - 100) / 700) * 100}%` }]} />
+                        </View>
+                        <TouchableOpacity style={s.stepBtn} onPress={() => setPicSize(v => Math.min(800, v + 50))}>
+                          <Icon name="add" size={18} color={C.ink} />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={s.sliderEnds}>
+                        <Text style={s.sliderEnd}>Small</Text>
+                        <Text style={s.sliderEnd}>Large</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+
                 <TouchableOpacity style={s.btn} onPress={nextStep}><Text style={s.btnTxt}>Next Step</Text></TouchableOpacity>
               </View>
             ) : (
@@ -266,4 +356,17 @@ const s = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 25 },
   footerTxt: { fontSize: 14, color: C.inkMid },
   footerLink: { fontSize: 14, fontWeight: '800', color: C.gold },
+  picSection: { marginBottom: 18 },
+  picPicker: { alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.border, borderRadius: 12, borderStyle: 'dashed', paddingVertical: 18, backgroundColor: C.surface },
+  picPlaceholder: { alignItems: 'center', gap: 6 },
+  picPreview: { resizeMode: 'cover' },
+  picHint: { fontSize: 12, color: C.inkLight },
+  sliderWrap: { marginTop: 14 },
+  sliderLabel: { fontSize: 12, color: C.inkMid, marginBottom: 8, textAlign: 'center' },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface },
+  stepBar: { flex: 1, height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
+  stepFill: { height: '100%', backgroundColor: C.gold, borderRadius: 3 },
+  sliderEnds: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  sliderEnd: { fontSize: 11, color: C.inkLight },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,46 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const C = {
-  bg: '#F7F4EF',
-  surface: '#FFFFFF',
-  ink: '#1A1612',
-  inkMid: '#6B6459',
-  gold: '#C9A84C',
-  border: '#EAE4DA',
-};
+import { useAppTheme } from '../../../context/ThemeContext';
+import { THEMES } from '../../../constants/themes';
+function buildC(t: typeof THEMES.light) {
+  return { bg: t.bg, surface: t.surface, ink: t.ink, inkMid: t.inkMid, inkLight: t.inkDim, gold: t.gold, goldSoft: t.goldSoft, border: t.border, error: t.crimson, success: t.teal, raised: t.raised };
+}
+let C = buildC(THEMES.light);
+function getStyles(C: ReturnType<typeof buildC>) { return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.bg },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backTxt: { fontSize: 24, color: C.ink, lineHeight: 28, marginTop: -2 },
+  pageTitle: { fontSize: 18, fontWeight: '800', color: C.ink, letterSpacing: -0.3 },
+  titleDivider: { height: 3, backgroundColor: C.gold, marginHorizontal: 20, borderRadius: 2, marginBottom: 4 },
+
+  scrollContent: { paddingHorizontal: 20, paddingVertical: 20, paddingBottom: 40 },
+  content: {
+    fontSize: 14,
+    color: C.ink,
+    lineHeight: 22,
+    fontFamily: 'System',
+  },
+});
+}
+
+let styles = getStyles(C);
 
 const PRIVACY_CONTENT = `PRIVACY POLICY
 
@@ -50,6 +82,7 @@ If you have any questions about this Privacy Policy, please contact us at:
 Email: privacy@etorismo.com`;
 
 export default function Privacy({ navigation }: any) {
+  const { theme } = useAppTheme(); C = buildC(theme); styles = getStyles(C);
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
@@ -67,36 +100,3 @@ export default function Privacy({ navigation }: any) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backTxt: { fontSize: 24, color: C.ink, lineHeight: 28, marginTop: -2 },
-  pageTitle: { fontSize: 18, fontWeight: '800', color: C.ink, letterSpacing: -0.3 },
-  titleDivider: { height: 3, backgroundColor: C.gold, marginHorizontal: 20, borderRadius: 2, marginBottom: 4 },
-
-  scrollContent: { paddingHorizontal: 20, paddingVertical: 20, paddingBottom: 40 },
-  content: {
-    fontSize: 14,
-    color: C.ink,
-    lineHeight: 22,
-    fontFamily: 'System',
-  },
-});
-

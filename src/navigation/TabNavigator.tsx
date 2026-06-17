@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+﻿import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,40 +12,34 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useAppTheme } from '../context/ThemeContext';
 
 // Screens
 import Home from '../screens/main/Home';
 import QRScanner from '../screens/main/QRScanner';
 import SettingsStack from './SettingsStack';
 
+
 // ─────────────────────────────────────────────
 // SACRED HERITAGE THEME TOKENS
 // ─────────────────────────────────────────────
-const COLORS = {
-  // Light, warm background (from HomeScreen)
-  background: '#FFFCF8',  // Creamy off-white
-  
-  // Glass surface colors
-  surface: 'rgba(255,255,255,0.85)',
-  border: '#EAE5DF',  // Subtle warm border
-  borderLight: 'rgba(199,168,75,0.25)', // Gold-tinted border
-  
-  // Text colors (from HomeScreen palette)
-  textPrimary: '#1E1B17',  // Deep warm black
-  textSecondary: '#5C564B',  // Warm taupe
-  textMuted: '#9B948A',  // Soft warm gray
-  
-  // Brand accent - Gold (from HomeScreen)
-  gold: '#C7A84B',
-  goldWarm: '#D4B86A',
-  goldSoft: '#FDF8F0',
-  
-  // Crimson for special actions
-  crimson: '#E74C3C',
-  
-  // Shadow color
-  shadow: '#1E1B17',
-};
+function buildColors(t: any) {
+  return {
+    background: t.bg,
+    surface: 'rgba(255,255,255,0.85)',
+    border: t.border,
+    borderLight: t.borderGold,
+    textPrimary: t.ink,
+    textSecondary: t.inkMid,
+    textMuted: t.inkDim,
+    gold: t.gold,
+    goldWarm: t.goldBright,
+    goldSoft: t.goldSoft,
+    crimson: t.crimson,
+    shadow: t.ink,
+  };
+}
+let COLORS = buildColors({ bg: '#FFFCF8', border: '#EAE5DF', borderGold: 'rgba(199,168,75,0.25)', ink: '#1E1B17', inkMid: '#5C564B', inkDim: '#9B948A', gold: '#C7A84B', goldBright: '#D4B86A', goldSoft: '#FDF8F0', crimson: '#E74C3C' });
 
 // ─────────────────────────────────────────────
 // TABS
@@ -69,6 +63,7 @@ const TABS = [
 // MAIN NAVIGATOR
 // ─────────────────────────────────────────────
 export default function TabNavigator() {
+  const { theme } = useAppTheme(); COLORS = buildColors(theme);
   const pagerRef = useRef<PagerView>(null);
   const insets = useSafeAreaInsets();
 
@@ -109,91 +104,44 @@ export default function TabNavigator() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      
-      {/* PAGES */}
-      <PagerView
-        ref={pagerRef}
-        style={{ flex: 1 }}
-        initialPage={0}
-        onPageSelected={(e) =>
-          setIndex(e.nativeEvent.position)
-        }
-      >
-        <View key="0">
-          <Home setNavbarVisible={setNavbarVisible} />
+        <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+          <PagerView
+            ref={pagerRef}
+            style={{ flex: 1 }}
+            initialPage={0}
+            onPageSelected={(e) => setIndex(e.nativeEvent.position)}
+          >
+            <View key="0"><Home setNavbarVisible={setNavbarVisible} /></View>
+            <View key="1"><QRScanner setNavbarVisible={setNavbarVisible} /></View>
+            <View key="2"><SettingsStack setNavbarVisible={setNavbarVisible} /></View>
+          </PagerView>
+
+          <Animated.View
+            pointerEvents={navbarVisible ? 'auto' : 'none'}
+            style={[
+              styles.navWrapper,
+              {
+                bottom: insets.bottom > 0 ? insets.bottom + 8 : 18,
+                opacity: navbarOpacity,
+                transform: [{ translateY: navbarTranslate }],
+              },
+            ]}
+          >
+            <BlurView intensity={35} tint="light" style={styles.navbar}>
+              <TabItem label={TABS[0].label} activeIcon={TABS[0].activeIcon} inactiveIcon={TABS[0].inactiveIcon} focused={index === 0} onPress={() => goToPage(0)} />
+              <View style={{ width: 80 }} />
+              <TabItem label={TABS[1].label} activeIcon={TABS[1].activeIcon} inactiveIcon={TABS[1].inactiveIcon} focused={index === 2} onPress={() => goToPage(2)} />
+            </BlurView>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={[styles.scanButton, index === 1 && styles.scanButtonActive]}
+              onPress={() => goToPage(1)}
+            >
+              <View style={styles.scanGlow} />
+              <Ionicons name={index === 1 ? 'scan' : 'scan-outline'} size={24} color="#fff" />
+            </TouchableOpacity>
+          </Animated.View>
         </View>
-
-        <View key="1">
-          <QRScanner />
-        </View>
-
-        <View key="2">
-          <SettingsStack />
-        </View>
-      </PagerView>
-
-      {/* ─────────────────────────────
-          ANIMATED NAVBAR
-      ───────────────────────────── */}
-      <Animated.View
-        pointerEvents={navbarVisible ? 'auto' : 'none'}
-        style={[
-          styles.navWrapper,
-          {
-            bottom:
-              insets.bottom > 0
-                ? insets.bottom + 8
-                : 18,
-            opacity: navbarOpacity,
-            transform: [
-              { translateY: navbarTranslate },
-            ],
-          },
-        ]}
-      >
-        {/* GLASS BAR - SACRED HERITAGE STYLE */}
-        <BlurView intensity={35} tint="light" style={styles.navbar}>
-          
-          {/* HOME */}
-          <TabItem
-            label={TABS[0].label}
-            activeIcon={TABS[0].activeIcon}
-            inactiveIcon={TABS[0].inactiveIcon}
-            focused={index === 0}
-            onPress={() => goToPage(0)}
-          />
-
-          <View style={{ width: 80 }} />
-
-          {/* SETTINGS */}
-          <TabItem
-            label={TABS[1].label}
-            activeIcon={TABS[1].activeIcon}
-            inactiveIcon={TABS[1].inactiveIcon}
-            focused={index === 2}
-            onPress={() => goToPage(2)}
-          />
-        </BlurView>
-
-        {/* CENTER BUTTON - GOLD ACCENT */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          style={[
-            styles.scanButton,
-            index === 1 && styles.scanButtonActive
-          ]}
-          onPress={() => goToPage(1)}
-        >
-          <View style={styles.scanGlow} />
-          <Ionicons
-            name={index === 1 ? 'scan' : 'scan-outline'}
-            size={24}
-            color="#fff"
-          />
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
   );
 }
 

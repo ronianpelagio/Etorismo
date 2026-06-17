@@ -38,6 +38,7 @@ const emptyForm = {
   last_name: '', 
   gender: '' as string,
   age: '' as string,
+  address: '',
   role: 'user', 
   status: 'active' 
 };
@@ -96,6 +97,7 @@ export default function UsersPage() {
       last_name: u.last_name ?? '',
       gender: u.gender ?? '',
       age: u.age?.toString() ?? '',
+      address: u.Address ?? '',
       role: u.role ?? 'user',
       status: u.status ?? 'active',
     });
@@ -123,6 +125,7 @@ export default function UsersPage() {
           last_name: form.last_name.trim(),
           gender: form.gender || null,
           age: form.age ? parseInt(form.age) : null,
+          Address: form.address.trim() || null,
           role: form.role, 
           status: form.status 
         };
@@ -188,6 +191,7 @@ export default function UsersPage() {
           .update({
             gender: form.gender || null,
             age: form.age ? parseInt(form.age) : null,
+            Address: form.address.trim() || null,
             role: form.role,
             status: form.status,
           })
@@ -326,14 +330,23 @@ export default function UsersPage() {
                   <tr key={u.id} className="group transition hover:bg-muted/30">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-muted text-xs font-semibold uppercase text-foreground">
-                          {getInitial(u)}
-                        </div>
+                        {u.profile_picture ? (
+                          <img
+                            src={u.profile_picture}
+                            alt={getFullName(u) ?? u.email}
+                            className="h-8 w-8 rounded-lg object-cover border border-border"
+                          />
+                        ) : (
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-muted text-xs font-semibold uppercase text-foreground">
+                            {getInitial(u)}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-foreground">
                             {getFullName(u) || <span className="text-muted-foreground">No name</span>}
                           </div>
                           <div className="truncate text-xs text-muted-foreground">{u.email}</div>
+                          {u.Address && <div className="truncate text-xs text-muted-foreground">{u.Address}</div>}
                         </div>
                       </div>
                     </td>
@@ -494,6 +507,16 @@ export default function UsersPage() {
                 className="h-10 rounded-xl bg-muted/40"
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Address</Label>
+            <Input
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="Street, City, Province"
+              className="h-10 rounded-xl bg-muted/40"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
