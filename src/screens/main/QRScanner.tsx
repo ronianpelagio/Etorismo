@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Animated, Modal, ScrollView, Image,
   Dimensions, Platform, StatusBar, FlatList,
 } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { setAudioModeAsync, createAudioPlayer } from 'expo-audio';
@@ -1015,12 +1015,13 @@ export default function QRScanner({ setNavbarVisible }: { setNavbarVisible?: (v:
 
   const playScanSound = async () => {
     // Drop in a sound file at assets/sounds/scan_success.mp3 to enable audio feedback.
-    // The try/catch ensures silence if the asset is missing.
+    // Using a try/catch ensures silence if the asset is missing or fails to load.
     try {
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldPlayInBackground: false, interruptionMode: 'duckOthers' });
-      const player = createAudioPlayer(require('../../../assets/sounds/scan_success.mp3')) as any;
-      player.play();
-      setTimeout(() => player.remove?.(), 3000);
+      // NOTE: Place scan_success.mp3 in assets/sounds/ and uncomment the line below.
+      // const player = createAudioPlayer(require('../../../assets/sounds/scan_success.mp3')) as any;
+      // player.play();
+      // setTimeout(() => player.remove?.(), 3000);
     } catch (_) {}
   };
 

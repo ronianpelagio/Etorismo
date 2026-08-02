@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 type PageHeaderProps = {
   eyebrow?: string;
@@ -7,7 +7,12 @@ type PageHeaderProps = {
   actions?: React.ReactNode;
 };
 
-export default function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
+export default function PageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+}: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
       <div className="space-y-1.5">
@@ -16,12 +21,18 @@ export default function PageHeader({ eyebrow, title, description, actions }: Pag
             {eyebrow}
           </div>
         )}
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          {title}
+        </h1>
         {description && (
-          <p className="text-sm text-muted-foreground max-w-xl">{description}</p>
+          <p className="text-sm text-muted-foreground max-w-xl">
+            {description}
+          </p>
         )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2">{actions}</div>
+      )}
     </div>
   );
 }

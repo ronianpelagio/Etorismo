@@ -2,7 +2,7 @@
 //  artifactUtils.ts  –  Translation · TTS Audio · Supabase Upload
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { supabase } from '../services/supabase';
+import { supabase } from "../services/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,58 +28,58 @@ export interface AudioUploadResult {
 
 const LANG_CONFIG = [
   {
-    code: 'en' as const,
-    label: 'English',
-    myMemoryCode: 'en-US',
-    gttsCode: 'en',
-    googleCode: 'en',
-    dbDesc: 'description_en',
-    dbName: 'name',
-    dbAudio: 'audio_en',
+    code: "en" as const,
+    label: "English",
+    myMemoryCode: "en-US",
+    gttsCode: "en",
+    googleCode: "en",
+    dbDesc: "description_en",
+    dbName: "name",
+    dbAudio: "audio_en",
   },
   {
-    code: 'fil' as const,
-    label: 'Filipino',
-    myMemoryCode: 'tl-PH',
-    gttsCode: 'tl',
-    googleCode: 'tl',
-    dbDesc: 'description_fil',
-    dbName: 'name_fil',
-    dbAudio: 'audio_fil',
+    code: "fil" as const,
+    label: "Filipino",
+    myMemoryCode: "tl-PH",
+    gttsCode: "tl",
+    googleCode: "tl",
+    dbDesc: "description_fil",
+    dbName: "name_fil",
+    dbAudio: "audio_fil",
   },
   {
-    code: 'ja' as const,
-    label: 'Japanese',
-    myMemoryCode: 'ja-JP',
-    gttsCode: 'ja',
-    googleCode: 'ja',
-    dbDesc: 'description_ja',
-    dbName: 'name_ja',
-    dbAudio: 'audio_ja',
+    code: "ja" as const,
+    label: "Japanese",
+    myMemoryCode: "ja-JP",
+    gttsCode: "ja",
+    googleCode: "ja",
+    dbDesc: "description_ja",
+    dbName: "name_ja",
+    dbAudio: "audio_ja",
   },
   {
-    code: 'es' as const,
-    label: 'Spanish',
-    myMemoryCode: 'es-ES',
-    gttsCode: 'es',
-    googleCode: 'es',
-    dbDesc: 'description_es',
-    dbName: 'name_es',
-    dbAudio: 'audio_es',
+    code: "es" as const,
+    label: "Spanish",
+    myMemoryCode: "es-ES",
+    gttsCode: "es",
+    googleCode: "es",
+    dbDesc: "description_es",
+    dbName: "name_es",
+    dbAudio: "audio_es",
   },
   {
-    code: 'ko' as const,
-    label: 'Korean',
-    myMemoryCode: 'ko-KR',
-    gttsCode: 'ko',
-    googleCode: 'ko',
-    dbDesc: 'description_ko',
-    dbName: 'name_ko',
-    dbAudio: 'audio_ko',
+    code: "ko" as const,
+    label: "Korean",
+    myMemoryCode: "ko-KR",
+    gttsCode: "ko",
+    googleCode: "ko",
+    dbDesc: "description_ko",
+    dbName: "name_ko",
+    dbAudio: "audio_ko",
   },
 ] as const;
 
-type LangCode = 'en' | 'fil' | 'ja' | 'es' | 'ko';
+type LangCode = "en" | "fil" | "ja" | "es" | "ko";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  FUNCTION 1 — translateAllLanguages (FIXED)
@@ -92,10 +92,14 @@ export async function translateAllLanguages(
   email?: string,
 ): Promise<TranslationResult> {
   if (!sourceName.trim()) {
-    throw new Error('Source name is empty. Please enter an English name first.');
+    throw new Error(
+      "Source name is empty. Please enter an English name first.",
+    );
   }
   if (!sourceDesc.trim()) {
-    throw new Error('Source description is empty. Please enter an English description first.');
+    throw new Error(
+      "Source description is empty. Please enter an English description first.",
+    );
   }
 
   // Split text into smaller chunks for better translation
@@ -106,7 +110,7 @@ export async function translateAllLanguages(
     while (start < text.length) {
       let end = start + maxLen;
       if (end < text.length) {
-        const lastSpace = text.lastIndexOf(' ', end);
+        const lastSpace = text.lastIndexOf(" ", end);
         if (lastSpace > start) end = lastSpace;
       }
       chunks.push(text.slice(start, end).trim());
@@ -116,16 +120,19 @@ export async function translateAllLanguages(
   }
 
   // Using Google Translate API (more reliable)
-  async function translateWithGoogle(text: string, targetCode: string): Promise<string> {
+  async function translateWithGoogle(
+    text: string,
+    targetCode: string,
+  ): Promise<string> {
     try {
       const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${targetCode}&dt=t&q=${encodeURIComponent(text)}`;
-      
+
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Google Translate HTTP ${res.status}`);
-      
+
       const data = await res.json();
-      let translated = '';
-      
+      let translated = "";
+
       if (data && data[0]) {
         for (const part of data[0]) {
           if (part[0]) {
@@ -133,7 +140,7 @@ export async function translateAllLanguages(
           }
         }
       }
-      
+
       return translated || text;
     } catch (err) {
       console.warn(`Google Translate failed for ${targetCode}:`, err);
@@ -142,22 +149,25 @@ export async function translateAllLanguages(
   }
 
   // Fallback to MyMemory if Google fails
-  async function translateWithMyMemory(text: string, targetCode: string): Promise<string> {
+  async function translateWithMyMemory(
+    text: string,
+    targetCode: string,
+  ): Promise<string> {
     try {
-      const emailParam = email ? `&de=${encodeURIComponent(email)}` : '';
+      const emailParam = email ? `&de=${encodeURIComponent(email)}` : "";
       const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetCode}${emailParam}`;
-      
+
       const res = await fetch(url);
       if (!res.ok) throw new Error(`MyMemory HTTP ${res.status}`);
-      
+
       const json = await res.json();
-      if (json.responseStatus !== 200 && json.responseStatus !== '200') {
+      if (json.responseStatus !== 200 && json.responseStatus !== "200") {
         throw new Error(json.responseDetails || `Translation failed`);
       }
-      
+
       let translated = (json.responseData?.translatedText as string) ?? text;
       // Remove unwanted suffixes
-      translated = translated.replace(/\[[^\]]+\]$/, '').trim();
+      translated = translated.replace(/\[[^\]]+\]$/, "").trim();
       return translated;
     } catch (err) {
       console.warn(`MyMemory failed for ${targetCode}:`, err);
@@ -165,35 +175,38 @@ export async function translateAllLanguages(
     }
   }
 
-  async function translateFull(text: string, targetCode: string): Promise<string> {
+  async function translateFull(
+    text: string,
+    targetCode: string,
+  ): Promise<string> {
     const chunks = chunkText(text);
     const translatedChunks = await Promise.all(
-      chunks.map(async chunk => {
+      chunks.map(async (chunk) => {
         // Try Google first, then MyMemory
         let result = await translateWithGoogle(chunk, targetCode);
         if (result === chunk) {
           result = await translateWithMyMemory(chunk, targetCode);
         }
         return result;
-      })
+      }),
     );
-    return translatedChunks.join(' ');
+    return translatedChunks.join(" ");
   }
 
   const result: TranslationResult = {
     description_en: sourceDesc,
     name_en: sourceName,
-    description_fil: '',
-    description_ja: '',
-    description_es: '',
-    description_ko: '',
-    name_fil: '',
-    name_ja: '',
-    name_es: '',
-    name_ko: '',
+    description_fil: "",
+    description_ja: "",
+    description_es: "",
+    description_ko: "",
+    name_fil: "",
+    name_ja: "",
+    name_es: "",
+    name_ko: "",
   };
 
-  const targets = LANG_CONFIG.filter(l => l.code !== 'en');
+  const targets = LANG_CONFIG.filter((l) => l.code !== "en");
 
   for (const lang of targets) {
     onStep?.(`Translating ${lang.label} name...`);
@@ -210,14 +223,20 @@ export async function translateAllLanguages(
     try {
       const translatedDesc = await translateFull(sourceDesc, lang.googleCode);
       (result as any)[lang.dbDesc] = translatedDesc;
-      console.log(`✅ ${lang.label} description:`, translatedDesc.substring(0, 100));
+      console.log(
+        `✅ ${lang.label} description:`,
+        translatedDesc.substring(0, 100),
+      );
     } catch (err: any) {
-      console.error(`Failed to translate ${lang.label} description:`, err.message);
+      console.error(
+        `Failed to translate ${lang.label} description:`,
+        err.message,
+      );
       (result as any)[lang.dbDesc] = sourceDesc;
     }
   }
 
-  onStep?.('Translation complete ✓');
+  onStep?.("Translation complete ✓");
   return result;
 }
 
@@ -233,10 +252,10 @@ export async function saveAudioToSupabase(
   artifactId: string,
   audioBlob: Blob,
   langCode: LangCode,
-  extension = 'mp3',
+  extension = "mp3",
   onStep?: (msg: string) => void,
 ): Promise<AudioUploadResult> {
-  const lang = LANG_CONFIG.find(l => l.code === langCode);
+  const lang = LANG_CONFIG.find((l) => l.code === langCode);
   if (!lang) {
     throw new Error(`Unknown language code: ${langCode}`);
   }
@@ -244,17 +263,17 @@ export async function saveAudioToSupabase(
   onStep?.(`Saving ${lang.label} audio reference…`);
 
   const audioMarker = `tts://${langCode}/${encodeURIComponent(artifactId)}`;
-  
+
   const updateData: any = {};
   updateData[lang.dbAudio] = audioMarker;
 
   const { error: dbErr } = await supabase
-    .from('artifacts')
+    .from("artifacts")
     .update(updateData)
-    .eq('id', artifactId);
+    .eq("id", artifactId);
 
   if (dbErr) {
-    console.error('DB update error:', dbErr);
+    console.error("DB update error:", dbErr);
     throw new Error(`DB update failed for ${lang.label}: ${dbErr.message}`);
   }
 
@@ -281,16 +300,16 @@ export async function generateAndSaveAllAudio(
       const audioMarker = `tts://${lang.code}/${encodeURIComponent(artifactId)}`;
       const updateData: any = {};
       updateData[lang.dbAudio] = audioMarker;
-      
-      await supabase
-        .from('artifacts')
-        .update(updateData)
-        .eq('id', artifactId);
-      
+
+      await supabase.from("artifacts").update(updateData).eq("id", artifactId);
+
       results.push({ lang: lang.code, url: audioMarker });
       onStep?.(`✓ ${lang.label} audio ready`);
     } catch (err: any) {
-      console.warn(`[generateAndSaveAllAudio] ${lang.label} skipped:`, err.message);
+      console.warn(
+        `[generateAndSaveAllAudio] ${lang.label} skipped:`,
+        err.message,
+      );
     }
   }
 
@@ -307,7 +326,7 @@ export async function saveAudioDirect(
   langCode: LangCode,
   onStep?: (msg: string) => void,
 ): Promise<AudioUploadResult> {
-  const lang = LANG_CONFIG.find(l => l.code === langCode);
+  const lang = LANG_CONFIG.find((l) => l.code === langCode);
   if (!lang) {
     throw new Error(`Unknown language code: ${langCode}`);
   }
@@ -318,12 +337,12 @@ export async function saveAudioDirect(
   updateData[lang.dbAudio] = audioUrl;
 
   const { error: dbErr } = await supabase
-    .from('artifacts')
+    .from("artifacts")
     .update(updateData)
-    .eq('id', artifactId);
+    .eq("id", artifactId);
 
   if (dbErr) {
-    console.error('DB update error:', dbErr);
+    console.error("DB update error:", dbErr);
     throw new Error(`DB update failed for ${lang.label}: ${dbErr.message}`);
   }
 

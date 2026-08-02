@@ -1,4 +1,3 @@
-
 export interface AdminUser {
   id: string;
   first_name: string;
@@ -90,7 +89,7 @@ export type DashboardStats = {
   activeUsers: number;
   blockedUsers: number;
   reviews: number;
-  liveStatus: 'offline' | 'live';
+  liveStatus: "offline" | "live";
   totalVisitors: number;
   scannedArtifacts: number;
   audioPlays: number;
@@ -106,13 +105,13 @@ export type DashboardDemographics = {
     unknown: number;
   };
   ageGroups: {
-    '13-17': number;
-    '18-24': number;
-    '25-34': number;
-    '35-44': number;
-    '45-54': number;
-    '55-64': number;
-    '65+': number;
+    "13-17": number;
+    "18-24": number;
+    "25-34": number;
+    "35-44": number;
+    "45-54": number;
+    "55-64": number;
+    "65+": number;
     unknown: number;
   };
   locations: Record<string, number>;

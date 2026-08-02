@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar as CalIcon,
   ChevronLeft,
@@ -12,28 +12,28 @@ import {
   Link2,
   AlignLeft,
   Clock,
-} from 'lucide-react';
-import { supabase } from '../services/supabase';
-import { EventItem } from '../types';
-import PageHeader from '../components/PageHeader';
-import EmptyState from '../components/EmptyState';
-import { Skeleton } from '../components/LoadingSkeleton';
-import Modal, { ConfirmModal } from '../components/Modal';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import { supabase } from "../services/supabase";
+import { EventItem } from "../types";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import { Skeleton } from "../components/LoadingSkeleton";
+import Modal, { ConfirmModal } from "../components/Modal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
 const emptyForm = {
-  title: '',
-  event_datetime: '',
-  description: '',
-  image_url: '',
+  title: "",
+  event_datetime: "",
+  description: "",
+  image_url: "",
 };
 
 type EForm = typeof emptyForm;
@@ -41,10 +41,18 @@ type EForm = typeof emptyForm;
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 // Use your existing 'media' bucket
-const STORAGE_BUCKET = 'media';
+const STORAGE_BUCKET = "media";
 
 // Supported image types
-const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/svg+xml'];
+const SUPPORTED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/bmp",
+  "image/svg+xml",
+];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 function isValidImageType(file: File): boolean {
@@ -52,7 +60,7 @@ function isValidImageType(file: File): boolean {
 }
 
 function getFileExtension(file: File): string {
-  const parts = file.name.split('.');
+  const parts = file.name.split(".");
   return parts[parts.length - 1].toLowerCase();
 }
 
@@ -60,59 +68,58 @@ async function uploadToStorage(file: File): Promise<string> {
   const ext = getFileExtension(file);
   const fileName = `${Date.now()}.${ext}`;
   const filePath = `events/${fileName}`;
-  
-  console.log('Uploading to bucket:', STORAGE_BUCKET);
-  console.log('File path:', filePath);
-  console.log('File type:', file.type);
-  console.log('File size:', file.size);
-  
+
+  console.log("Uploading to bucket:", STORAGE_BUCKET);
+  console.log("File path:", filePath);
+  console.log("File type:", file.type);
+  console.log("File size:", file.size);
+
   const { error: uploadError, data } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .upload(filePath, file, { 
+    .upload(filePath, file, {
       upsert: true,
-      cacheControl: '3600',
-      contentType: file.type
+      cacheControl: "3600",
+      contentType: file.type,
     });
-    
+
   if (uploadError) {
-    console.error('Upload error details:', uploadError);
+    console.error("Upload error details:", uploadError);
     throw new Error(`Upload failed: ${uploadError.message}`);
   }
-  
-  console.log('Upload successful, data:', data);
-  
+
+  console.log("Upload successful, data:", data);
+
   // Get the public URL
-  const { data: { publicUrl } } = supabase.storage
-    .from(STORAGE_BUCKET)
-    .getPublicUrl(filePath);
-  
-  console.log('Generated public URL:', publicUrl);
-  
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+
+  console.log("Generated public URL:", publicUrl);
+
   return publicUrl;
 }
 
 // ─── EventImage Component ────────────────────────────────────────────
 
-function EventImage({
-  url,
-  className,
-}: {
-  url: string;
-  className?: string;
-}) {
+function EventImage({ url, className }: { url: string; className?: string }) {
   const [imgError, setImgError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   if (!url || imgError) {
     return (
-      <div className={cn('flex items-center justify-center bg-muted/30', className)}>
+      <div
+        className={cn(
+          "flex items-center justify-center bg-muted/30",
+          className,
+        )}
+      >
         <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
       </div>
     );
   }
-  
+
   return (
-    <div className={cn('overflow-hidden bg-muted/30 relative', className)}>
+    <div className={cn("overflow-hidden bg-muted/30 relative", className)}>
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -123,12 +130,12 @@ function EventImage({
         alt=""
         className="h-full w-full object-cover"
         onError={() => {
-          console.error('Image failed to load:', url);
+          console.error("Image failed to load:", url);
           setImgError(true);
           setIsLoading(false);
         }}
         onLoad={() => {
-          console.log('Image loaded successfully:', url);
+          console.log("Image loaded successfully:", url);
           setIsLoading(false);
         }}
       />
@@ -145,7 +152,7 @@ function ImageSourcePicker({
   form: EForm;
   setForm: React.Dispatch<React.SetStateAction<EForm>>;
 }) {
-  const [tab, setTab] = useState<'upload' | 'url'>('upload');
+  const [tab, setTab] = useState<"upload" | "url">("upload");
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
@@ -154,37 +161,41 @@ function ImageSourcePicker({
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    console.log('Selected file:', file.name, file.type, file.size);
-    
+
+    console.log("Selected file:", file.name, file.type, file.size);
+
     // Validate file type
     if (!isValidImageType(file)) {
-      setUploadErr(`Unsupported file type: ${file.type}. Supported types: JPEG, PNG, WEBP, GIF, BMP, SVG`);
+      setUploadErr(
+        `Unsupported file type: ${file.type}. Supported types: JPEG, PNG, WEBP, GIF, BMP, SVG`,
+      );
       return;
     }
-    
+
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      setUploadErr(`File size must be less than ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
+      setUploadErr(
+        `File size must be less than ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+      );
       return;
     }
-    
+
     setUploading(true);
     setUploadErr(null);
     setPreviewError(false);
-    
+
     try {
       const url = await uploadToStorage(file);
-      console.log('Upload complete, setting form URL to:', url);
+      console.log("Upload complete, setting form URL to:", url);
       setForm((f) => ({ ...f, image_url: url }));
     } catch (err: any) {
-      console.error('Upload error:', err);
-      setUploadErr(err.message ?? 'Upload failed. Please try again.');
+      console.error("Upload error:", err);
+      setUploadErr(err.message ?? "Upload failed. Please try again.");
     } finally {
       setUploading(false);
       // Reset file input
       if (fileRef.current) {
-        fileRef.current.value = '';
+        fileRef.current.value = "";
       }
     }
   };
@@ -207,7 +218,7 @@ function ImageSourcePicker({
     if (!url) return;
     const isValid = await testImageUrl(url);
     if (!isValid) {
-      setUploadErr('Invalid image URL. Please check the URL and try again.');
+      setUploadErr("Invalid image URL. Please check the URL and try again.");
     } else {
       setUploadErr(null);
     }
@@ -218,7 +229,7 @@ function ImageSourcePicker({
     <div className="space-y-3">
       <Label className="text-xs">Cover image</Label>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as 'upload' | 'url')}>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "upload" | "url")}>
         <TabsList className="h-8 rounded-lg">
           <TabsTrigger value="upload" className="h-7 rounded-md px-3 text-xs">
             <Upload className="mr-1.5 h-3 w-3" /> Upload
@@ -229,23 +240,23 @@ function ImageSourcePicker({
         </TabsList>
       </Tabs>
 
-      {tab === 'upload' ? (
+      {tab === "upload" ? (
         <div>
-          <input 
-            ref={fileRef} 
-            type="file" 
-            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,image/svg+xml" 
-            className="hidden" 
-            onChange={handleFile} 
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,image/svg+xml"
+            className="hidden"
+            onChange={handleFile}
           />
           <button
             type="button"
             disabled={uploading}
             onClick={() => fileRef.current?.click()}
             className={cn(
-              'flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-6 text-xs text-muted-foreground transition',
-              'hover:border-foreground/40 hover:bg-muted/50 disabled:opacity-60',
-              form.image_url && 'border-primary/40'
+              "flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-6 text-xs text-muted-foreground transition",
+              "hover:border-foreground/40 hover:bg-muted/50 disabled:opacity-60",
+              form.image_url && "border-primary/40",
             )}
           >
             {uploading ? (
@@ -256,7 +267,9 @@ function ImageSourcePicker({
             ) : form.image_url ? (
               <>
                 <ImageIcon className="h-5 w-5 text-primary" />
-                <span className="text-primary">Image uploaded — click to replace</span>
+                <span className="text-primary">
+                  Image uploaded — click to replace
+                </span>
               </>
             ) : (
               <>
@@ -286,26 +299,28 @@ function ImageSourcePicker({
           )}
         </div>
       )}
-      
+
       {/* Preview uploaded image */}
       {form.image_url && (
         <div className="mt-2 rounded-lg border border-border p-2">
           <p className="mb-2 text-[10px] text-muted-foreground">Preview:</p>
           <div className="relative h-32 w-full overflow-hidden rounded-lg bg-muted/30">
             {!previewError ? (
-              <img 
-                src={form.image_url} 
-                alt="Preview" 
+              <img
+                src={form.image_url}
+                alt="Preview"
                 className="h-full w-full object-cover"
                 onError={() => {
-                  console.error('Preview failed to load:', form.image_url);
+                  console.error("Preview failed to load:", form.image_url);
                   setPreviewError(true);
-                  if (tab === 'url') {
-                    setUploadErr('Invalid image URL. Please check the URL and try again.');
+                  if (tab === "url") {
+                    setUploadErr(
+                      "Invalid image URL. Please check the URL and try again.",
+                    );
                   }
                 }}
                 onLoad={() => {
-                  console.log('Preview loaded successfully');
+                  console.log("Preview loaded successfully");
                   setPreviewError(false);
                   setUploadErr(null);
                 }}
@@ -313,7 +328,9 @@ function ImageSourcePicker({
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2">
                 <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
-                <span className="text-xs text-muted-foreground">Preview not available</span>
+                <span className="text-xs text-muted-foreground">
+                  Preview not available
+                </span>
               </div>
             )}
           </div>
@@ -357,17 +374,19 @@ function EventRow({
       {/* content */}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="truncate text-sm font-semibold text-foreground">{item.title}</h3>
+          <h3 className="truncate text-sm font-semibold text-foreground">
+            {item.title}
+          </h3>
           <Badge
             variant="outline"
             className={cn(
-              'rounded-full border text-[10px]',
+              "rounded-full border text-[10px]",
               isPast
-                ? 'border-border bg-muted/40 text-muted-foreground'
-                : 'border-primary/30 bg-primary/5 text-primary'
+                ? "border-border bg-muted/40 text-muted-foreground"
+                : "border-primary/30 bg-primary/5 text-primary",
             )}
           >
-            {isPast ? 'Past' : 'Upcoming'}
+            {isPast ? "Past" : "Upcoming"}
           </Badge>
         </div>
 
@@ -377,13 +396,20 @@ function EventRow({
         </div>
 
         {item.description && (
-          <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">{item.description}</p>
+          <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">
+            {item.description}
+          </p>
         )}
       </div>
 
       {/* actions */}
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-        <Button variant="ghost" size="sm" onClick={onEdit} className="h-7 rounded-lg px-2 text-[11px]">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onEdit}
+          className="h-7 rounded-lg px-2 text-[11px]"
+        >
           <Pencil className="h-3 w-3" />
         </Button>
         <Button
@@ -410,12 +436,14 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 8;
 
-  useEffect(() => { load(); }, [currentPage]);
+  useEffect(() => {
+    load();
+  }, [currentPage]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -423,7 +451,7 @@ export default function EventsPage() {
     return events.filter(
       (i) =>
         i.title.toLowerCase().includes(q) ||
-        (i.description ?? '').toLowerCase().includes(q)
+        (i.description ?? "").toLowerCase().includes(q),
     );
   }, [events, query]);
 
@@ -431,20 +459,22 @@ export default function EventsPage() {
     setLoading(true);
     setError(null);
     try {
-      const { count } = await supabase.from('events').select('*', { count: 'exact', head: true });
+      const { count } = await supabase
+        .from("events")
+        .select("*", { count: "exact", head: true });
       setTotalCount(count || 0);
       const from = (currentPage - 1) * itemsPerPage;
       const { data, error: e } = await supabase
-        .from('events')
-        .select('*')
-        .order('event_datetime', { ascending: false })
+        .from("events")
+        .select("*")
+        .order("event_datetime", { ascending: false })
         .range(from, from + itemsPerPage - 1);
-      
+
       if (e) throw e;
-      console.log('Loaded events:', data);
+      console.log("Loaded events:", data);
       setEvents((data || []) as EventItem[]);
     } catch (err: any) {
-      console.error('Load error:', err);
+      console.error("Load error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -466,9 +496,9 @@ export default function EventsPage() {
       title: item.title,
       event_datetime: item.event_datetime
         ? new Date(item.event_datetime).toISOString().slice(0, 16)
-        : '',
-      description: item.description ?? '',
-      image_url: item.image_url ?? '',
+        : "",
+      description: item.description ?? "",
+      image_url: item.image_url ?? "",
     });
     setError(null);
     setShowModal(true);
@@ -480,31 +510,34 @@ export default function EventsPage() {
     setError(null);
     try {
       if (!form.title || !form.event_datetime) {
-        throw new Error('Title and date are required.');
+        throw new Error("Title and date are required.");
       }
-      
+
       const payload = {
         title: form.title,
         event_datetime: new Date(form.event_datetime).toISOString(),
         description: form.description || null,
         image_url: form.image_url || null,
       };
-      
-      console.log('Saving payload:', payload);
-      
+
+      console.log("Saving payload:", payload);
+
       if (editItem) {
-        const { error: e } = await supabase.from('events').update(payload).eq('id', editItem.id);
+        const { error: e } = await supabase
+          .from("events")
+          .update(payload)
+          .eq("id", editItem.id);
         if (e) throw e;
       } else {
-        const { error: e } = await supabase.from('events').insert(payload);
+        const { error: e } = await supabase.from("events").insert(payload);
         if (e) throw e;
       }
-      
+
       setShowModal(false);
       setCurrentPage(1);
       await load();
     } catch (err: any) {
-      console.error('Submit error:', err);
+      console.error("Submit error:", err);
       setError(err.message);
     } finally {
       setSaving(false);
@@ -515,12 +548,15 @@ export default function EventsPage() {
     if (!deleteItem) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('events').delete().eq('id', deleteItem.id);
+      const { error } = await supabase
+        .from("events")
+        .delete()
+        .eq("id", deleteItem.id);
       if (error) throw error;
       setDeleteItem(null);
       await load();
     } catch (err: any) {
-      console.error('Delete error:', err);
+      console.error("Delete error:", err);
       setError(err.message);
     } finally {
       setSaving(false);
@@ -555,7 +591,9 @@ export default function EventsPage() {
           placeholder="Search events…"
           className="w-full sm:w-64 rounded-xl bg-muted/40"
         />
-        <span className="text-xs text-muted-foreground">{filtered.length} {filtered.length === 1 ? 'event' : 'events'}</span>
+        <span className="text-xs text-muted-foreground">
+          {filtered.length} {filtered.length === 1 ? "event" : "events"}
+        </span>
       </div>
 
       {loading ? (
@@ -568,11 +606,19 @@ export default function EventsPage() {
         <div className="rounded-2xl border border-border bg-card">
           <EmptyState
             icon={<CalIcon className="h-5 w-5" />}
-            title={query ? 'No matching events' : 'No events yet'}
-            description={query ? 'Try a different search term.' : 'Schedule your first museum event.'}
+            title={query ? "No matching events" : "No events yet"}
+            description={
+              query
+                ? "Try a different search term."
+                : "Schedule your first museum event."
+            }
             action={
               !query && (
-                <Button onClick={openCreate} variant="outline" className="rounded-xl">
+                <Button
+                  onClick={openCreate}
+                  variant="outline"
+                  className="rounded-xl"
+                >
                   <Plus className="mr-1.5 h-3.5 w-3.5" /> Add event
                 </Button>
               )
@@ -598,12 +644,14 @@ export default function EventsPage() {
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
               <span className="text-xs text-muted-foreground tabular-nums">
-                {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalCount)} of{' '}
+                {(currentPage - 1) * itemsPerPage + 1}–
+                {Math.min(currentPage * itemsPerPage, totalCount)} of{" "}
                 {totalCount} events
               </span>
               <div className="flex items-center gap-1.5">
                 <Button
-                  variant="outline" size="sm"
+                  variant="outline"
+                  size="sm"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((p) => p - 1)}
                   className="h-8 rounded-lg"
@@ -613,30 +661,42 @@ export default function EventsPage() {
 
                 {/* page numbers */}
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-                  .reduce<(number | '…')[]>((acc, p, idx, arr) => {
-                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                  .filter(
+                    (p) =>
+                      p === 1 ||
+                      p === totalPages ||
+                      Math.abs(p - currentPage) <= 1,
+                  )
+                  .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1)
+                      acc.push("…");
                     acc.push(p);
                     return acc;
                   }, [])
                   .map((p, i) =>
-                    p === '…' ? (
-                      <span key={`e${i}`} className="px-1 text-xs text-muted-foreground">…</span>
+                    p === "…" ? (
+                      <span
+                        key={`e${i}`}
+                        className="px-1 text-xs text-muted-foreground"
+                      >
+                        …
+                      </span>
                     ) : (
                       <Button
                         key={p}
-                        variant={p === currentPage ? 'default' : 'outline'}
+                        variant={p === currentPage ? "default" : "outline"}
                         size="sm"
                         onClick={() => setCurrentPage(p as number)}
                         className="h-8 w-8 rounded-lg p-0 text-xs"
                       >
                         {p}
                       </Button>
-                    )
+                    ),
                   )}
 
                 <Button
-                  variant="outline" size="sm"
+                  variant="outline"
+                  size="sm"
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((p) => p + 1)}
                   className="h-8 rounded-lg"
@@ -653,16 +713,24 @@ export default function EventsPage() {
       <Modal
         open={showModal}
         onOpenChange={setShowModal}
-        title={editItem ? 'Edit event' : 'New event'}
+        title={editItem ? "Edit event" : "New event"}
         description="Fill in the details and add a cover image."
         size="md"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setShowModal(false)} className="rounded-xl">
+            <Button
+              variant="ghost"
+              onClick={() => setShowModal(false)}
+              className="rounded-xl"
+            >
               Cancel
             </Button>
-            <Button onClick={handleSubmit as any} disabled={saving} className="rounded-xl">
-              {saving ? 'Saving…' : editItem ? 'Save changes' : 'Create event'}
+            <Button
+              onClick={handleSubmit as any}
+              disabled={saving}
+              className="rounded-xl"
+            >
+              {saving ? "Saving…" : editItem ? "Save changes" : "Create event"}
             </Button>
           </>
         }
@@ -687,7 +755,9 @@ export default function EventsPage() {
             <Input
               type="datetime-local"
               value={form.event_datetime}
-              onChange={(e) => setForm({ ...form, event_datetime: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, event_datetime: e.target.value })
+              }
               className="h-10 rounded-xl bg-muted/40"
               required
             />
@@ -701,7 +771,9 @@ export default function EventsPage() {
             <Textarea
               rows={3}
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
               className="rounded-xl bg-muted/40"
             />
           </div>

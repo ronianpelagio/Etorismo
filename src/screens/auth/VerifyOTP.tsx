@@ -220,7 +220,7 @@ export default function VerifyOTP({ route, navigation }: any) {
 
       {/* Success / Expired overlays */}
       {status === 'success' && (
-        <SuccessScreen onContinue={() => navigation.replace('Main')} />
+        <SuccessScreen onContinue={() => {}} />
       )}
       {status === 'expired' && (
         <ExpiredScreen

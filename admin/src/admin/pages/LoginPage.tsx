@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { supabase } from '../services/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { supabase } from "../services/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Props = { onLoggedIn: () => void; error?: string | null };
 
 export default function LoginPage({ onLoggedIn, error }: Props) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [authErr, setAuthErr] = useState<string | null>(null);
   const [showPwd, setShowPwd] = useState(false);
@@ -39,7 +39,7 @@ export default function LoginPage({ onLoggedIn, error }: Props) {
       <motion.div
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
         className="relative w-full max-w-md rounded-3xl border border-border bg-card/90 p-8 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] backdrop-blur-xl"
       >
         <div className="mb-7 flex items-center gap-3">
@@ -47,12 +47,18 @@ export default function LoginPage({ onLoggedIn, error }: Props) {
             E
           </div>
           <div>
-            <div className="text-sm font-semibold text-foreground">ETurismo</div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Admin Console</div>
+            <div className="text-sm font-semibold text-foreground">
+              ETurismo
+            </div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Admin Console
+            </div>
           </div>
         </div>
 
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sign in</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Sign in
+        </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Sacred Heritage Collection · Administrator access only.
         </p>
@@ -65,7 +71,10 @@ export default function LoginPage({ onLoggedIn, error }: Props) {
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
+            <Label
+              htmlFor="email"
+              className="text-xs font-medium text-muted-foreground"
+            >
               Email
             </Label>
             <Input
@@ -81,13 +90,16 @@ export default function LoginPage({ onLoggedIn, error }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
+            <Label
+              htmlFor="password"
+              className="text-xs font-medium text-muted-foreground"
+            >
               Password
             </Label>
             <div className="relative">
               <Input
                 id="password"
-                type={showPwd ? 'text' : 'password'}
+                type={showPwd ? "text" : "password"}
                 value={password}
                 autoComplete="current-password"
                 onChange={(e) => setPassword(e.target.value)}
@@ -99,20 +111,29 @@ export default function LoginPage({ onLoggedIn, error }: Props) {
                 type="button"
                 onClick={() => setShowPwd((v) => !v)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                aria-label={showPwd ? 'Hide password' : 'Show password'}
+                aria-label={showPwd ? "Hide password" : "Show password"}
               >
-                {showPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {showPwd ? (
+                  <EyeOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" />
+                )}
               </button>
             </div>
           </div>
 
-          <Button type="submit" disabled={loading} className="h-10 w-full rounded-xl text-sm font-medium">
+          <Button
+            type="submit"
+            disabled={loading}
+            className="h-10 w-full rounded-xl text-sm font-medium"
+          >
             {loading ? (
               <>
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Signing in…
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Signing
+                in…
               </>
             ) : (
-              'Sign in'
+              "Sign in"
             )}
           </Button>
         </form>

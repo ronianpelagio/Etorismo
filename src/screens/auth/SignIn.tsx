@@ -181,7 +181,7 @@ export default function SignIn({ navigation }: any) {
       if (pErr || !profile) { setAuthError('Profile not found. Please sign up again.'); return; }
       if (profile.status !== 'active') { setAuthError('Account inactive. Contact support.'); return; }
 
-      navigation.replace(profile.role === 'admin' ? 'AdminDashboard' : 'Main');
+      // AuthNavigator handles redirect automatically via onAuthStateChange
     } catch (e: any) {
       setAuthError(e.message);
     } finally {
@@ -267,7 +267,7 @@ export default function SignIn({ navigation }: any) {
             ) : null}
 
             {/* Forgot */}
-            <TouchableOpacity style={s.forgot} onPress={() => navigation.navigate('ForgotPassword')}>
+            <TouchableOpacity style={s.forgot} onPress={() => Alert.alert('Reset Password', 'Please contact support to reset your password.')}>
               <Text style={s.forgotTxt}>Forgot Password?</Text>
             </TouchableOpacity>
 

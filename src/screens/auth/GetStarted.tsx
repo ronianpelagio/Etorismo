@@ -53,7 +53,7 @@ const PAGES = [
   },
 ];
 
-export default function GetStarted({ navigation }: any) {
+export default function GetStarted({ navigation, onOnboardingComplete }: any) {
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -65,9 +65,17 @@ export default function GetStarted({ navigation }: any) {
   const contentOpacity = useRef(new Animated.Value(1)).current;
   const imageScale = useRef(new Animated.Value(1)).current;
   
-  // Dot animations
-  const dotScales = PAGES.map(() => useRef(new Animated.Value(1)).current);
-  const dotOpacities = PAGES.map((_, i) => useRef(new Animated.Value(i === 0 ? 1 : 0.4)).current);
+  // Dot animations — PAGES has exactly 3 items; declare refs statically to obey Rules of Hooks
+  const dotScales = [
+    useRef(new Animated.Value(1)).current,
+    useRef(new Animated.Value(1)).current,
+    useRef(new Animated.Value(1)).current,
+  ];
+  const dotOpacities = [
+    useRef(new Animated.Value(1)).current,
+    useRef(new Animated.Value(0.4)).current,
+    useRef(new Animated.Value(0.4)).current,
+  ];
   
   // Entrance animation
   const entranceY = useRef(new Animated.Value(30)).current;
@@ -129,7 +137,7 @@ export default function GetStarted({ navigation }: any) {
         Animated.timing(entranceOp, { toValue: 0, duration: 300, useNativeDriver: true }),
         Animated.timing(buttonScale, { toValue: 0.95, duration: 200, useNativeDriver: true }),
       ]).start(() => {
-        navigation.replace('AppIntro');
+        onOnboardingComplete && onOnboardingComplete();
       });
     }
   };
@@ -184,7 +192,7 @@ export default function GetStarted({ navigation }: any) {
             Animated.parallel([
               Animated.timing(entranceOp, { toValue: 0, duration: 300, useNativeDriver: true }),
               Animated.timing(buttonScale, { toValue: 0.95, duration: 200, useNativeDriver: true }),
-            ]).start(() => navigation.replace('AppIntro'));
+            ]).start(() => onOnboardingComplete && onOnboardingComplete());
           }}
           activeOpacity={0.7}
         >

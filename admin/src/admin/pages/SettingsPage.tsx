@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Save, Check } from 'lucide-react';
-import PageHeader from '../components/PageHeader';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ConfirmModal } from '../components/Modal';
+import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Save, Check } from "lucide-react";
+import PageHeader from "../components/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ConfirmModal } from "../components/Modal";
 
 export default function SettingsPage() {
   const [form, setForm] = useState({
-    museumName: 'ETorismo',
-    defaultLanguage: 'English',
-    timezone: 'UTC',
+    museumName: "ETorismo",
+    defaultLanguage: "English",
+    timezone: "UTC",
     notifications: true,
   });
   const [showModal, setShowModal] = useState(false);
@@ -22,15 +22,19 @@ export default function SettingsPage() {
 
   useEffect(() => {
     try {
-      const v = localStorage.getItem('etorismoAdminSettings');
+      const v = localStorage.getItem("etorismoAdminSettings");
       if (v) setForm(JSON.parse(v));
-    } catch {}
+    } catch {
+      // localStorage unavailable (private browsing); use defaults
+    }
   }, []);
 
   const handleSave = () => {
     try {
-      localStorage.setItem('etorismoAdminSettings', JSON.stringify(form));
-    } catch {}
+      localStorage.setItem("etorismoAdminSettings", JSON.stringify(form));
+    } catch {
+      // localStorage unavailable; settings won't persist
+    }
     setShowModal(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2600);
@@ -51,10 +55,16 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="general" className="space-y-4">
         <TabsList className="rounded-xl border border-border bg-card p-1">
-          <TabsTrigger value="general" className="rounded-lg text-xs data-[state=active]:bg-muted">
+          <TabsTrigger
+            value="general"
+            className="rounded-lg text-xs data-[state=active]:bg-muted"
+          >
             General
           </TabsTrigger>
-          <TabsTrigger value="preferences" className="rounded-lg text-xs data-[state=active]:bg-muted">
+          <TabsTrigger
+            value="preferences"
+            className="rounded-lg text-xs data-[state=active]:bg-muted"
+          >
             Preferences
           </TabsTrigger>
         </TabsList>
@@ -66,7 +76,9 @@ export default function SettingsPage() {
                 <Label className="text-xs">Museum name</Label>
                 <Input
                   value={form.museumName}
-                  onChange={(e) => setForm({ ...form, museumName: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, museumName: e.target.value })
+                  }
                   className="h-10 rounded-xl bg-muted/40"
                 />
               </div>
@@ -74,7 +86,9 @@ export default function SettingsPage() {
                 <Label className="text-xs">Default language</Label>
                 <Input
                   value={form.defaultLanguage}
-                  onChange={(e) => setForm({ ...form, defaultLanguage: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, defaultLanguage: e.target.value })
+                  }
                   className="h-10 rounded-xl bg-muted/40"
                 />
               </div>
@@ -82,7 +96,9 @@ export default function SettingsPage() {
                 <Label className="text-xs">Timezone</Label>
                 <Input
                   value={form.timezone}
-                  onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, timezone: e.target.value })
+                  }
                   className="h-10 rounded-xl bg-muted/40"
                 />
               </div>
@@ -94,7 +110,9 @@ export default function SettingsPage() {
           <Card className="rounded-2xl border-border bg-card p-6">
             <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
               <div>
-                <Label className="text-sm font-medium text-foreground">Notifications</Label>
+                <Label className="text-sm font-medium text-foreground">
+                  Notifications
+                </Label>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Email me when new ratings or accounts are created.
                 </p>
@@ -106,8 +124,12 @@ export default function SettingsPage() {
             </div>
             <div className="flex items-center justify-between gap-4 pt-4">
               <div>
-                <Label className="text-sm font-medium text-foreground">Compact density</Label>
-                <p className="mt-1 text-xs text-muted-foreground">Reduce padding across tables and cards.</p>
+                <Label className="text-sm font-medium text-foreground">
+                  Compact density
+                </Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Reduce padding across tables and cards.
+                </p>
               </div>
               <Switch />
             </div>

@@ -1,38 +1,66 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, X, Loader2,
-  Package, Users, CalendarDays, Megaphone, Headphones,
-} from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { supabase } from '../services/supabase';
-import { type PageKey } from '../navigation';
+  Search,
+  X,
+  Loader2,
+  Package,
+  Users,
+  CalendarDays,
+  Megaphone,
+  Headphones,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { supabase } from "../services/supabase";
+import { type PageKey } from "../navigation";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
-type ResultKind = 'artifact' | 'user' | 'event' | 'announcement' | 'audio_guide';
+type ResultKind =
+  | "artifact"
+  | "user"
+  | "event"
+  | "announcement"
+  | "audio_guide";
 
 interface Result {
   id: string;
   kind: ResultKind;
   primary: string;
   secondary: string;
-  page: PageKey;         // which admin page to navigate to
-  artifactId?: string;   // for audio_guide → artifacts page
+  page: PageKey; // which admin page to navigate to
+  artifactId?: string; // for audio_guide → artifacts page
 }
 
 // ─── config ───────────────────────────────────────────────────────────────────
 
-const KIND_META: Record<ResultKind, { icon: React.ElementType; label: string; color: string }> = {
-  artifact:     { icon: Package,      label: 'Artifact',     color: 'text-violet-500'  },
-  user:         { icon: Users,        label: 'User',         color: 'text-blue-500'    },
-  event:        { icon: CalendarDays, label: 'Event',        color: 'text-amber-500'   },
-  announcement: { icon: Megaphone,    label: 'Announcement', color: 'text-rose-500'    },
-  audio_guide:  { icon: Headphones,   label: 'Audio Guide',  color: 'text-emerald-500' },
+const KIND_META: Record<
+  ResultKind,
+  { icon: React.ElementType; label: string; color: string }
+> = {
+  artifact: { icon: Package, label: "Artifact", color: "text-violet-500" },
+  user: { icon: Users, label: "User", color: "text-blue-500" },
+  event: { icon: CalendarDays, label: "Event", color: "text-amber-500" },
+  announcement: {
+    icon: Megaphone,
+    label: "Announcement",
+    color: "text-rose-500",
+  },
+  audio_guide: {
+    icon: Headphones,
+    label: "Audio Guide",
+    color: "text-emerald-500",
+  },
 };
 
-const ORDER: ResultKind[] = ['artifact', 'user', 'event', 'announcement', 'audio_guide'];
+const ORDER: ResultKind[] = [
+  "artifact",
+  "user",
+  "event",
+  "announcement",
+  "audio_guide",
+];
 
 // ─── debounce ─────────────────────────────────────────────────────────────────
 
@@ -51,67 +79,86 @@ async function globalSearch(q: string): Promise<Result[]> {
   const like = `%${q}%`;
   const results: Result[] = [];
 
-  const [artifacts, users, events, announcements, audioGuides] = await Promise.all([
-    supabase
-      .from('artifacts')
-      .select('id, name, category, creator')
-      .or(`name.ilike.${like},category.ilike.${like},creator.ilike.${like},description.ilike.${like}`)
-      .limit(5),
-    supabase
-      .from('users')
-      .select('id, first_name, last_name, email, role')
-      .or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like}`)
-      .limit(5),
-    supabase
-      .from('events')
-      .select('id, title, event_datetime')
-      .or(`title.ilike.${like},description.ilike.${like}`)
-      .limit(4),
-    supabase
-      .from('announcements')
-      .select('id, title, announcement_datetime')
-      .or(`title.ilike.${like},description.ilike.${like}`)
-      .limit(4),
-    supabase
-      .from('audio_guides')
-      .select('id, artifact_name, artifact_id')
-      .ilike('artifact_name', like)
-      .limit(4),
-  ]);
+  const [artifacts, users, events, announcements, audioGuides] =
+    await Promise.all([
+      supabase
+        .from("artifacts")
+        .select("id, name, category, creator")
+        .or(
+          `name.ilike.${like},category.ilike.${like},creator.ilike.${like},description.ilike.${like}`,
+        )
+        .limit(5),
+      supabase
+        .from("users")
+        .select("id, first_name, last_name, email, role")
+        .or(
+          `first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like}`,
+        )
+        .limit(5),
+      supabase
+        .from("events")
+        .select("id, title, event_datetime")
+        .or(`title.ilike.${like},description.ilike.${like}`)
+        .limit(4),
+      supabase
+        .from("announcements")
+        .select("id, title, announcement_datetime")
+        .or(`title.ilike.${like},description.ilike.${like}`)
+        .limit(4),
+      supabase
+        .from("audio_guides")
+        .select("id, artifact_name, artifact_id")
+        .ilike("artifact_name", like)
+        .limit(4),
+    ]);
 
   for (const row of artifacts.data ?? []) {
     results.push({
-      id: row.id, kind: 'artifact', page: 'artifacts',
+      id: row.id,
+      kind: "artifact",
+      page: "artifacts",
       primary: row.name,
-      secondary: [row.category, row.creator].filter(Boolean).join(' · '),
+      secondary: [row.category, row.creator].filter(Boolean).join(" · "),
     });
   }
   for (const row of users.data ?? []) {
     results.push({
-      id: row.id, kind: 'user', page: 'users',
+      id: row.id,
+      kind: "user",
+      page: "users",
       primary: `${row.first_name} ${row.last_name}`,
       secondary: `${row.email} · ${row.role}`,
     });
   }
   for (const row of events.data ?? []) {
     results.push({
-      id: row.id, kind: 'event', page: 'events',
+      id: row.id,
+      kind: "event",
+      page: "events",
       primary: row.title,
-      secondary: row.event_datetime ? new Date(row.event_datetime).toLocaleString() : '',
+      secondary: row.event_datetime
+        ? new Date(row.event_datetime).toLocaleString()
+        : "",
     });
   }
   for (const row of announcements.data ?? []) {
     results.push({
-      id: row.id, kind: 'announcement', page: 'announcements',
+      id: row.id,
+      kind: "announcement",
+      page: "announcements",
       primary: row.title,
-      secondary: row.announcement_datetime ? new Date(row.announcement_datetime).toLocaleString() : '',
+      secondary: row.announcement_datetime
+        ? new Date(row.announcement_datetime).toLocaleString()
+        : "",
     });
   }
   for (const row of audioGuides.data ?? []) {
     results.push({
-      id: row.id, kind: 'audio_guide', page: 'artifacts',
-      primary: row.artifact_name ?? 'Audio Guide',
-      secondary: 'Audio Guide',
+      id: row.id,
+      kind: "audio_guide",
+      page: "artifacts",
+      primary: row.artifact_name ?? "Audio Guide",
+      secondary: "Audio Guide",
       artifactId: row.artifact_id,
     });
   }
@@ -139,9 +186,15 @@ function Highlight({ text, query }: { text: string; query: string }) {
 // ─── result row ───────────────────────────────────────────────────────────────
 
 function ResultRow({
-  result, query, active, onClick,
+  result,
+  query,
+  active,
+  onClick,
 }: {
-  result: Result; query: string; active: boolean; onClick: () => void;
+  result: Result;
+  query: string;
+  active: boolean;
+  onClick: () => void;
 }) {
   const { icon: Icon, label, color } = KIND_META[result.kind];
   return (
@@ -149,11 +202,11 @@ function ResultRow({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors',
-        active ? 'bg-muted/60' : 'hover:bg-muted/40'
+        "flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors",
+        active ? "bg-muted/60" : "hover:bg-muted/40",
       )}
     >
-      <div className={cn('shrink-0', color)}>
+      <div className={cn("shrink-0", color)}>
         <Icon className="h-3.5 w-3.5" />
       </div>
       <div className="min-w-0 flex-1">
@@ -181,69 +234,95 @@ type SearchBarProps = {
 };
 
 export default function SearchBar({ className, onNavigate }: SearchBarProps) {
-  const [query,     setQuery]     = useState('');
-  const [results,   setResults]   = useState<Result[]>([]);
-  const [loading,   setLoading]   = useState(false);
-  const [open,      setOpen]      = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Result[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
-  const inputRef                  = useRef<HTMLInputElement>(null);
-  const containerRef              = useRef<HTMLDivElement>(null);
-  const debounced                 = useDebounce(query, 280);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounced = useDebounce(query, 280);
 
   useEffect(() => {
-    if (debounced.trim().length < 2) { setResults([]); setOpen(false); return; }
+    if (debounced.trim().length < 2) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     globalSearch(debounced.trim()).then((r) => {
       if (cancelled) return;
-      setResults(r); setOpen(true); setActiveIdx(-1); setLoading(false);
+      setResults(r);
+      setOpen(true);
+      setActiveIdx(-1);
+      setLoading(false);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [debounced]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (!open || results.length === 0) return;
-      if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, results.length - 1)); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, -1)); }
-      else if (e.key === 'Enter' && activeIdx >= 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIdx((i) => Math.min(i + 1, results.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIdx((i) => Math.max(i - 1, -1));
+      } else if (e.key === "Enter" && activeIdx >= 0) {
         e.preventDefault();
         onNavigate(results[activeIdx].page);
-        setOpen(false); setQuery('');
-      } else if (e.key === 'Escape') { setOpen(false); }
+        setOpen(false);
+        setQuery("");
+      } else if (e.key === "Escape") {
+        setOpen(false);
+      }
     },
-    [open, results, activeIdx, onNavigate]
+    [open, results, activeIdx, onNavigate],
   );
 
   const handleSelect = (result: Result) => {
     onNavigate(result.page);
-    setOpen(false); setQuery('');
+    setOpen(false);
+    setQuery("");
     inputRef.current?.blur();
   };
 
-  const clear = () => { setQuery(''); setResults([]); setOpen(false); inputRef.current?.focus(); };
+  const clear = () => {
+    setQuery("");
+    setResults([]);
+    setOpen(false);
+    inputRef.current?.focus();
+  };
 
-  const grouped = ORDER.reduce<{ kind: ResultKind; items: Result[] }[]>((acc, kind) => {
-    const items = results.filter((r) => r.kind === kind);
-    if (items.length) acc.push({ kind, items });
-    return acc;
-  }, []);
+  const grouped = ORDER.reduce<{ kind: ResultKind; items: Result[] }[]>(
+    (acc, kind) => {
+      const items = results.filter((r) => r.kind === kind);
+      if (items.length) acc.push({ kind, items });
+      return acc;
+    },
+    [],
+  );
 
   return (
-    <div ref={containerRef} className={cn('relative', className)}>
+    <div ref={containerRef} className={cn("relative", className)}>
       <div className="relative">
-        {loading
-          ? <Loader2 className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
-          : <Search  className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        }
+        {loading ? (
+          <Loader2 className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+        ) : (
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        )}
         <Input
           ref={inputRef}
           value={query}
@@ -254,7 +333,11 @@ export default function SearchBar({ className, onNavigate }: SearchBarProps) {
           className="h-9 rounded-xl border-border bg-muted/40 pl-9 pr-8 text-sm placeholder:text-muted-foreground/70 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-foreground/40"
         />
         {query && (
-          <button type="button" onClick={clear} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+          <button
+            type="button"
+            onClick={clear}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
             <X className="h-3.5 w-3.5" />
           </button>
         )}
@@ -281,7 +364,7 @@ export default function SearchBar({ className, onNavigate }: SearchBarProps) {
                   return (
                     <div key={kind}>
                       <div className="flex items-center gap-1.5 px-3 pb-1 pt-2.5">
-                        <Icon className={cn('h-3 w-3', color)} />
+                        <Icon className={cn("h-3 w-3", color)} />
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                           {label}s
                         </span>
@@ -299,8 +382,12 @@ export default function SearchBar({ className, onNavigate }: SearchBarProps) {
                   );
                 })}
                 <div className="flex items-center justify-between border-t border-border px-3 py-2 mt-1">
-                  <span className="text-[10px] text-muted-foreground">{results.length} result{results.length !== 1 ? 's' : ''}</span>
-                  <span className="text-[10px] text-muted-foreground">↑↓ navigate · ↵ open · esc close</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {results.length} result{results.length !== 1 ? "s" : ""}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    ↑↓ navigate · ↵ open · esc close
+                  </span>
                 </div>
               </div>
             )}

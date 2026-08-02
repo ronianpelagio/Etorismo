@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,8 +6,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 type ModalProps = {
   open: boolean;
@@ -16,27 +16,43 @@ type ModalProps = {
   description?: string;
   children?: React.ReactNode;
   footer?: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
 };
 
 const sizeMap = {
-  sm: 'sm:max-w-md',
-  md: 'sm:max-w-lg',
-  lg: 'sm:max-w-2xl',
+  sm: "sm:max-w-md",
+  md: "sm:max-w-lg",
+  lg: "sm:max-w-2xl",
 };
 
-export default function Modal({ open, onOpenChange, title, description, children, footer, size = 'md' }: ModalProps) {
+export default function Modal({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+  size = "md",
+}: ModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={`${sizeMap[size]} rounded-2xl border-border bg-popover/95 backdrop-blur-xl`}
       >
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold tracking-tight">{title}</DialogTitle>
-          {description && <DialogDescription className="text-sm text-muted-foreground">{description}</DialogDescription>}
+          <DialogTitle className="text-lg font-semibold tracking-tight">
+            {title}
+          </DialogTitle>
+          {description && (
+            <DialogDescription className="text-sm text-muted-foreground">
+              {description}
+            </DialogDescription>
+          )}
         </DialogHeader>
         {children}
-        {footer && <DialogFooter className="gap-2 sm:gap-2">{footer}</DialogFooter>}
+        {footer && (
+          <DialogFooter className="gap-2 sm:gap-2">{footer}</DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -60,8 +76,8 @@ export function ConfirmModal({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
   onConfirm,
   loading,
   destructive,
@@ -75,16 +91,20 @@ export function ConfirmModal({
       size="sm"
       footer={
         <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl">
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="rounded-xl"
+          >
             {cancelLabel}
           </Button>
           <Button
             onClick={onConfirm}
             disabled={loading}
-            variant={destructive ? 'destructive' : 'default'}
+            variant={destructive ? "destructive" : "default"}
             className="rounded-xl"
           >
-            {loading ? 'Working…' : confirmLabel}
+            {loading ? "Working…" : confirmLabel}
           </Button>
         </>
       }

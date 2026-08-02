@@ -1,46 +1,54 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { MoreHorizontal, Plus, ShieldCheck, ShieldOff, UserCog, Trash2, Pencil } from 'lucide-react';
-import { supabase } from '../services/supabase';
-import { AdminUser } from '../types';
-import PageHeader from '../components/PageHeader';
-import SearchBar from '../components/SearchBar';
-import EmptyState from '../components/EmptyState';
-import { TableSkeleton } from '../components/LoadingSkeleton';
-import Modal, { ConfirmModal } from '../components/Modal';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  MoreHorizontal,
+  Plus,
+  ShieldCheck,
+  ShieldOff,
+  UserCog,
+  Trash2,
+  Pencil,
+} from "lucide-react";
+import { supabase } from "../services/supabase";
+import { AdminUser } from "../types";
+import PageHeader from "../components/PageHeader";
+import SearchBar from "../components/SearchBar";
+import EmptyState from "../components/EmptyState";
+import { TableSkeleton } from "../components/LoadingSkeleton";
+import Modal, { ConfirmModal } from "../components/Modal";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 
-const ROLES = ['user', 'admin'] as const;
-const STATUSES = ['active', 'inactive'] as const;
-const GENDERS = ['Male', 'Female', 'Other'] as const;
+const ROLES = ["user", "admin"] as const;
+const STATUSES = ["active", "inactive"] as const;
+const GENDERS = ["Male", "Female", "Other"] as const;
 
-const emptyForm = { 
-  email: '', 
-  password: '',
-  first_name: '', 
-  last_name: '', 
-  gender: '' as string,
-  age: '' as string,
-  address: '',
-  role: 'user', 
-  status: 'active' 
+const emptyForm = {
+  email: "",
+  password: "",
+  first_name: "",
+  last_name: "",
+  gender: "" as string,
+  age: "" as string,
+  address: "",
+  role: "user",
+  status: "active",
 };
 
 export default function UsersPage() {
@@ -52,7 +60,7 @@ export default function UsersPage() {
   const [deleteItem, setDeleteItem] = useState<AdminUser | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     load();
@@ -61,9 +69,9 @@ export default function UsersPage() {
   const load = async () => {
     setLoading(true);
     const { data, error: e } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from("users")
+      .select("*")
+      .order("created_at", { ascending: false });
     if (e) setError(e.message);
     setUsers((data || []) as AdminUser[]);
     setLoading(false);
@@ -75,9 +83,9 @@ export default function UsersPage() {
     return users.filter(
       (u) =>
         u.email?.toLowerCase().includes(q) ||
-        (u.first_name ?? '').toLowerCase().includes(q) ||
-        (u.last_name ?? '').toLowerCase().includes(q) ||
-        (u.role ?? '').toLowerCase().includes(q)
+        (u.first_name ?? "").toLowerCase().includes(q) ||
+        (u.last_name ?? "").toLowerCase().includes(q) ||
+        (u.role ?? "").toLowerCase().includes(q),
     );
   }, [users, query]);
 
@@ -92,14 +100,14 @@ export default function UsersPage() {
     setEditItem(u);
     setForm({
       email: u.email,
-      password: '',
-      first_name: u.first_name ?? '',
-      last_name: u.last_name ?? '',
-      gender: u.gender ?? '',
-      age: u.age?.toString() ?? '',
-      address: u.Address ?? '',
-      role: u.role ?? 'user',
-      status: u.status ?? 'active',
+      password: "",
+      first_name: u.first_name ?? "",
+      last_name: u.last_name ?? "",
+      gender: u.gender ?? "",
+      age: u.age?.toString() ?? "",
+      address: u.Address ?? "",
+      role: u.role ?? "user",
+      status: u.status ?? "active",
     });
     setError(null);
     setShowModal(true);
@@ -109,85 +117,88 @@ export default function UsersPage() {
     e.preventDefault();
     setSaving(true);
     setError(null);
-    
+
     try {
       // Validation
-      if (!form.email) throw new Error('Email is required.');
-      if (!form.first_name) throw new Error('First name is required.');
-      if (!form.last_name) throw new Error('Last name is required.');
-      if (!editItem && !form.password) throw new Error('Password is required for new users.');
-      if (form.password && form.password.length < 6) throw new Error('Password must be at least 6 characters.');
+      if (!form.email) throw new Error("Email is required.");
+      if (!form.first_name) throw new Error("First name is required.");
+      if (!form.last_name) throw new Error("Last name is required.");
+      if (!editItem && !form.password)
+        throw new Error("Password is required for new users.");
+      if (form.password && form.password.length < 6)
+        throw new Error("Password must be at least 6 characters.");
 
       if (editItem) {
         // Update existing user in public.users
-        const updateData: any = { 
+        const updateData: any = {
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
           gender: form.gender || null,
           age: form.age ? parseInt(form.age) : null,
           Address: form.address.trim() || null,
-          role: form.role, 
-          status: form.status 
+          role: form.role,
+          status: form.status,
         };
 
         const { error: updateError } = await supabase
-          .from('users')
+          .from("users")
           .update(updateData)
-          .eq('id', editItem.id);
-        
+          .eq("id", editItem.id);
+
         if (updateError) throw updateError;
 
         // If password is provided, update it
         if (form.password) {
           const { error: passwordError } = await supabase.auth.updateUser({
-            password: form.password
+            password: form.password,
           });
-          
+
           if (passwordError) {
-            console.warn('Could not update password:', passwordError.message);
+            console.warn("Could not update password:", passwordError.message);
           }
         }
       } else {
         // FIRST: Check if user already exists
         const { data: existingUser, error: checkError } = await supabase
-          .from('users')
-          .select('email')
-          .eq('email', form.email.trim().toLowerCase())
+          .from("users")
+          .select("email")
+          .eq("email", form.email.trim().toLowerCase())
           .single();
-        
+
         if (existingUser) {
-          throw new Error('A user with this email already exists.');
+          throw new Error("A user with this email already exists.");
         }
 
         // Create new user using regular signup with better error handling
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
-          email: form.email.trim().toLowerCase(),
-          password: form.password,
-          options: {
-            data: {
-              first_name: form.first_name.trim(),
-              last_name: form.last_name.trim(),
+        const { data: authData, error: signUpError } =
+          await supabase.auth.signUp({
+            email: form.email.trim().toLowerCase(),
+            password: form.password,
+            options: {
+              data: {
+                first_name: form.first_name.trim(),
+                last_name: form.last_name.trim(),
+              },
+              // Temporarily disable email confirmation to bypass SMTP issues
+              emailRedirectTo: window.location.origin,
             },
-            // Temporarily disable email confirmation to bypass SMTP issues
-            emailRedirectTo: window.location.origin,
-          },
-        });
+          });
 
         if (signUpError) {
-          console.error('Signup error details:', signUpError);
+          console.error("Signup error details:", signUpError);
           throw new Error(`Signup failed: ${signUpError.message}`);
         }
-        
+
         if (!authData.user) {
-          throw new Error('User creation failed - no user returned');
+          throw new Error("User creation failed - no user returned");
         }
 
         // Wait for the trigger to execute
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
         // Update the user with additional fields
         const { error: updateError } = await supabase
-          .from('users')
+          .from("users")
           .update({
             gender: form.gender || null,
             age: form.age ? parseInt(form.age) : null,
@@ -195,10 +206,10 @@ export default function UsersPage() {
             role: form.role,
             status: form.status,
           })
-          .eq('id', authData.user.id);
+          .eq("id", authData.user.id);
 
         if (updateError) {
-          console.error('Failed to update user details:', updateError);
+          console.error("Failed to update user details:", updateError);
           // Don't throw - user was created successfully
         }
       }
@@ -206,8 +217,8 @@ export default function UsersPage() {
       setShowModal(false);
       await load();
     } catch (err: any) {
-      console.error('Full error object:', err);
-      setError(err.message || 'An unexpected error occurred');
+      console.error("Full error object:", err);
+      setError(err.message || "An unexpected error occurred");
     } finally {
       setSaving(false);
     }
@@ -216,16 +227,16 @@ export default function UsersPage() {
   const handleDelete = async () => {
     if (!deleteItem) return;
     setSaving(true);
-    
+
     try {
       // Delete from public.users (cascade should handle auth.users if set up)
       const { error } = await supabase
-        .from('users')
+        .from("users")
         .delete()
-        .eq('id', deleteItem.id);
-      
+        .eq("id", deleteItem.id);
+
       if (error) throw error;
-      
+
       setDeleteItem(null);
       await load();
     } catch (err: any) {
@@ -237,37 +248,37 @@ export default function UsersPage() {
 
   const toggleStatus = async (u: AdminUser) => {
     setSaving(true);
-    const newStatus = u.status === 'inactive' ? 'active' : 'inactive';
-    
+    const newStatus = u.status === "inactive" ? "active" : "inactive";
+
     const { error } = await supabase
-      .from('users')
+      .from("users")
       .update({ status: newStatus })
-      .eq('id', u.id);
-    
+      .eq("id", u.id);
+
     if (error) {
       setError(error.message);
     } else {
       await load();
     }
-    
+
     setSaving(false);
   };
 
   const toggleRole = async (u: AdminUser) => {
     setSaving(true);
-    const newRole = u.role === 'admin' ? 'user' : 'admin';
-    
+    const newRole = u.role === "admin" ? "user" : "admin";
+
     const { error } = await supabase
-      .from('users')
+      .from("users")
       .update({ role: newRole })
-      .eq('id', u.id);
-    
+      .eq("id", u.id);
+
     if (error) {
       setError(error.message);
     } else {
       await load();
     }
-    
+
     setSaving(false);
   };
 
@@ -279,7 +290,11 @@ export default function UsersPage() {
   };
 
   const getInitial = (user: AdminUser) => {
-    return (user.first_name?.[0] || user.last_name?.[0] || user.email[0]).toUpperCase();
+    return (
+      user.first_name?.[0] ||
+      user.last_name?.[0] ||
+      user.email[0]
+    ).toUpperCase();
   };
 
   return (
@@ -297,21 +312,38 @@ export default function UsersPage() {
 
       <Card className="rounded-2xl border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search users…" className="w-full sm:w-64" />
-          <span className="text-xs text-muted-foreground">{filtered.length} {filtered.length === 1 ? 'user' : 'users'}</span>
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search users…"
+            className="w-full sm:w-64"
+          />
+          <span className="text-xs text-muted-foreground">
+            {filtered.length} {filtered.length === 1 ? "user" : "users"}
+          </span>
         </div>
 
         {loading ? (
           <TableSkeleton rows={6} cols={5} />
         ) : filtered.length === 0 ? (
           <EmptyState
-            title={query ? 'No matching users' : 'No users yet'}
-            description={query ? 'Try a different search term.' : 'Add your first user to get started.'}
-            action={!query && (
-              <Button onClick={openCreate} variant="outline" className="rounded-xl">
-                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add user
-              </Button>
-            )}
+            title={query ? "No matching users" : "No users yet"}
+            description={
+              query
+                ? "Try a different search term."
+                : "Add your first user to get started."
+            }
+            action={
+              !query && (
+                <Button
+                  onClick={openCreate}
+                  variant="outline"
+                  className="rounded-xl"
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Add user
+                </Button>
+              )
+            }
           />
         ) : (
           <div className="overflow-x-auto">
@@ -322,7 +354,9 @@ export default function UsersPage() {
                   <th className="px-5 py-2.5 font-medium">Role</th>
                   <th className="px-5 py-2.5 font-medium">Status</th>
                   <th className="px-5 py-2.5 font-medium">Joined</th>
-                  <th className="px-5 py-2.5 font-medium w-12 text-right">Actions</th>
+                  <th className="px-5 py-2.5 font-medium w-12 text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -343,10 +377,20 @@ export default function UsersPage() {
                         )}
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-foreground">
-                            {getFullName(u) || <span className="text-muted-foreground">No name</span>}
+                            {getFullName(u) || (
+                              <span className="text-muted-foreground">
+                                No name
+                              </span>
+                            )}
                           </div>
-                          <div className="truncate text-xs text-muted-foreground">{u.email}</div>
-                          {u.Address && <div className="truncate text-xs text-muted-foreground">{u.Address}</div>}
+                          <div className="truncate text-xs text-muted-foreground">
+                            {u.email}
+                          </div>
+                          {u.Address && (
+                            <div className="truncate text-xs text-muted-foreground">
+                              {u.Address}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -354,53 +398,79 @@ export default function UsersPage() {
                       <Badge
                         variant="outline"
                         className={`rounded-full border-border text-[10px] uppercase tracking-wider ${
-                          u.role === 'admin' ? 'bg-foreground text-background' : 'bg-muted/40 text-muted-foreground'
+                          u.role === "admin"
+                            ? "bg-foreground text-background"
+                            : "bg-muted/40 text-muted-foreground"
                         }`}
                       >
-                        {u.role || 'user'}
+                        {u.role || "user"}
                       </Badge>
                     </td>
                     <td className="px-5 py-3">
                       <span className="inline-flex items-center gap-1.5 text-xs text-foreground">
                         <span
                           className={`h-1.5 w-1.5 rounded-full ${
-                            u.status === 'inactive' ? 'bg-destructive' : 'bg-foreground'
+                            u.status === "inactive"
+                              ? "bg-destructive"
+                              : "bg-foreground"
                           }`}
                         />
-                        {u.status || 'active'}
+                        {u.status || "active"}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-xs text-muted-foreground">
-                      {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
+                      {u.created_at
+                        ? new Date(u.created_at).toLocaleDateString()
+                        : "—"}
                     </td>
                     <td className="px-5 py-3 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg"
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44 rounded-xl border-border">
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-44 rounded-xl border-border"
+                        >
                           <DropdownMenuItem onClick={() => openEdit(u)}>
                             <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toggleRole(u)} disabled={saving}>
+                          <DropdownMenuItem
+                            onClick={() => toggleRole(u)}
+                            disabled={saving}
+                          >
                             <UserCog className="mr-2 h-3.5 w-3.5" />
-                            {u.role === 'admin' ? 'Demote to user' : 'Promote to admin'}
+                            {u.role === "admin"
+                              ? "Demote to user"
+                              : "Promote to admin"}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toggleStatus(u)} disabled={saving}>
-                            {u.status === 'inactive' ? (
+                          <DropdownMenuItem
+                            onClick={() => toggleStatus(u)}
+                            disabled={saving}
+                          >
+                            {u.status === "inactive" ? (
                               <>
-                                <ShieldCheck className="mr-2 h-3.5 w-3.5" /> Activate
+                                <ShieldCheck className="mr-2 h-3.5 w-3.5" />{" "}
+                                Activate
                               </>
                             ) : (
                               <>
-                                <ShieldOff className="mr-2 h-3.5 w-3.5" /> Deactivate
+                                <ShieldOff className="mr-2 h-3.5 w-3.5" />{" "}
+                                Deactivate
                               </>
                             )}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => setDeleteItem(u)} className="text-destructive focus:text-destructive">
+                          <DropdownMenuItem
+                            onClick={() => setDeleteItem(u)}
+                            className="text-destructive focus:text-destructive"
+                          >
                             <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -417,15 +487,27 @@ export default function UsersPage() {
       <Modal
         open={showModal}
         onOpenChange={setShowModal}
-        title={editItem ? 'Edit user' : 'Add user'}
-        description={editItem ? 'Update the user\'s details and permissions.' : 'Create a new account for an admin or visitor.'}
+        title={editItem ? "Edit user" : "Add user"}
+        description={
+          editItem
+            ? "Update the user's details and permissions."
+            : "Create a new account for an admin or visitor."
+        }
         footer={
           <>
-            <Button variant="ghost" onClick={() => setShowModal(false)} className="rounded-xl">
+            <Button
+              variant="ghost"
+              onClick={() => setShowModal(false)}
+              className="rounded-xl"
+            >
               Cancel
             </Button>
-            <Button onClick={handleSubmit as any} disabled={saving} className="rounded-xl">
-              {saving ? 'Saving…' : editItem ? 'Save changes' : 'Create user'}
+            <Button
+              onClick={handleSubmit as any}
+              disabled={saving}
+              className="rounded-xl"
+            >
+              {saving ? "Saving…" : editItem ? "Save changes" : "Create user"}
             </Button>
           </>
         }
@@ -443,28 +525,32 @@ export default function UsersPage() {
               required
             />
           </div>
-          
+
           <div className="space-y-1.5">
             <Label className="text-xs">
-              {editItem ? 'New password (leave blank to keep current)' : 'Password *'}
+              {editItem
+                ? "New password (leave blank to keep current)"
+                : "Password *"}
             </Label>
             <Input
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder={editItem ? 'New password' : 'Min. 6 characters'}
+              placeholder={editItem ? "New password" : "Min. 6 characters"}
               className="h-10 rounded-xl bg-muted/40"
               required={!editItem}
               minLength={6}
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">First name *</Label>
               <Input
                 value={form.first_name}
-                onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, first_name: e.target.value })
+                }
                 placeholder="First name"
                 className="h-10 rounded-xl bg-muted/40"
                 required
@@ -474,7 +560,9 @@ export default function UsersPage() {
               <Label className="text-xs">Last name *</Label>
               <Input
                 value={form.last_name}
-                onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, last_name: e.target.value })
+                }
                 placeholder="Last name"
                 className="h-10 rounded-xl bg-muted/40"
                 required
@@ -485,13 +573,18 @@ export default function UsersPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Gender</Label>
-              <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+              <Select
+                value={form.gender}
+                onValueChange={(v) => setForm({ ...form, gender: v })}
+              >
                 <SelectTrigger className="h-10 rounded-xl bg-muted/40">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
                   {GENDERS.map((g) => (
-                    <SelectItem key={g} value={g}>{g}</SelectItem>
+                    <SelectItem key={g} value={g}>
+                      {g}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -522,23 +615,37 @@ export default function UsersPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Role</Label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+              <Select
+                value={form.role}
+                onValueChange={(v) => setForm({ ...form, role: v })}
+              >
                 <SelectTrigger className="h-10 rounded-xl bg-muted/40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  {ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+              <Select
+                value={form.status}
+                onValueChange={(v) => setForm({ ...form, status: v })}
+              >
                 <SelectTrigger className="h-10 rounded-xl bg-muted/40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -556,7 +663,7 @@ export default function UsersPage() {
         open={!!deleteItem}
         onOpenChange={(o) => !o && setDeleteItem(null)}
         title="Remove user"
-        description={`Remove ${deleteItem?.email ?? 'this user'} from the database? This cannot be undone.`}
+        description={`Remove ${deleteItem?.email ?? "this user"} from the database? This cannot be undone.`}
         confirmLabel="Remove user"
         destructive
         loading={saving}
